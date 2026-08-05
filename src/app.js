@@ -10,7 +10,7 @@ export function criarApp() {
   app.get('/api/saude', (req, res) => res.json({ ok: true }));
 
   app.get('/api/doacoes', async (req, res) => {
-    try {
+    try { 
       res.json(await doacoes.listarDisponiveis());
     } catch (erro) {
       res.status(400).json({ erro: erro.message });
