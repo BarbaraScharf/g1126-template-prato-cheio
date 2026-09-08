@@ -1,20 +1,35 @@
 // Regras de negócio das doações.
-// TODO (grupo): implementar conforme as histórias e os critérios de aceite da Unidade 1.
 import * as repo from './repositorio.js';
 
-// História zero — "um doador publica uma doação".
-// Critério: tipo, quantidade e validade são obrigatórios.
-export async function criarDoacao({ tipo, quantidade, validade }) {
-  throw new Error('não implementado: criarDoacao');
+// História 1 — "um doador publica uma doação".
+// Critérios de aceite:
+//   - tipo, quantidade e validade são obrigatórios (campo ausente → erro)
+//   - quantidade não pode ser vazia ou só espaços
+export async function criarDoacao({ tipo, quantidade, validade } = {}) {
+  const faltando = ['tipo', 'quantidade', 'validade'].filter(
+    campo => !({ tipo, quantidade, validade }[campo]?.toString().trim())
+  );
+  if (faltando.length > 0) {
+    throw new Error(`Campos obrigatórios ausentes: ${faltando.join(', ')}`);
+  }
+  return repo.inserir({ tipo: tipo.trim(), quantidade: quantidade.trim(), validade: validade.trim() });
 }
 
-// História zero — "uma ONG vê as doações disponíveis".
+// História 2 — "uma ONG vê as doações disponíveis".
 export async function listarDisponiveis() {
-  throw new Error('não implementado: listarDisponiveis');
+  return repo.listarDisponiveis();
 }
 
-// História zero — "uma ONG aceita uma doação".
-// Regra do caso: uma doação aceita não fica disponível para outra ONG.
+// História 3 — "uma ONG aceita uma doação".
+// Critério: doação já aceita por outra ONG → erro informativo.
 export async function aceitar(id, ong) {
-  throw new Error('não implementado: aceitar');
+  const doacao = await repo.buscarPorId(id);
+  if (!doacao) {
+    throw new Error('Doação não encontrada');
+  }
+  const atualizada = await repo.aceitar(id, ong);
+  if (!atualizada) {
+    throw new Error('Doação não está mais disponível');
+  }
+  return atualizada;
 }
