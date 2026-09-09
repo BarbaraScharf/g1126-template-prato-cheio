@@ -21,8 +21,14 @@ describe('a aplicação sobe', () => {
 // ---------------------------------------------------------------------------
 
 describe('publicar e listar doações', () => {
-  beforeEach(async () => { await migrar(); await limparBanco(); });
-  afterAll(async () => { await encerrar(); });
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
 
   // História 1 / Critério: publicação com sucesso
   // Dado que o doador preencheu tipo, quantidade e validade
@@ -31,10 +37,15 @@ describe('publicar e listar doações', () => {
   it('mostra a doação publicada na lista de disponíveis', async () => {
     await request(app)
       .post('/api/doacoes')
-      .send({ tipo: 'Sopa', quantidade: '10 porções', validade: '2026-12-01' })
+      .send({
+        tipo: 'Sopa',
+        quantidade: '10 porções',
+        validade: '2026-12-01'
+      })
       .expect(201);
 
     const res = await request(app).get('/api/doacoes');
+
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].tipo).toBe('Sopa');
@@ -48,7 +59,7 @@ describe('publicar e listar doações', () => {
   it('recusa doação sem os campos obrigatórios', async () => {
     const res = await request(app)
       .post('/api/doacoes')
-      .send({ tipo: 'Arroz' }); // faltam quantidade e validade
+      .send({ tipo: 'Arroz' });
 
     expect(res.status).toBe(400);
     expect(res.body.erro).toMatch(/quantidade/);
@@ -61,20 +72,32 @@ describe('publicar e listar doações', () => {
   // Então o sistema retorna lista vazia
   it('retorna lista vazia quando não há doações disponíveis', async () => {
     const res = await request(app).get('/api/doacoes');
+
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(0);
   });
 });
 
 describe('aceitar uma doação', () => {
-  beforeEach(async () => { await migrar(); await limparBanco(); });
-  afterAll(async () => { await encerrar(); });
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
 
   // Helper: publica uma doação e devolve o id criado
   async function publicarDoacao(tipo = 'Feijão') {
     const res = await request(app)
       .post('/api/doacoes')
-      .send({ tipo, quantidade: '5 kg', validade: '2026-12-01' });
+      .send({
+        tipo,
+        quantidade: '5 kg',
+        validade: '2026-12-01'
+      });
+
     return res.body.id;
   }
 
@@ -106,6 +129,7 @@ describe('aceitar uma doação', () => {
       .send({ ong: 'ONG Esperança' });
 
     const res = await request(app).get('/api/doacoes');
+
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(0);
   });
@@ -127,5 +151,17 @@ describe('aceitar uma doação', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.erro).toMatch(/não está mais disponível/);
+  });
+
+  // Nova regra: o nome da ONG é obrigatório para aceitar uma doação.
+  it('recusa aceitar uma doação sem informar o nome da ONG', async () => {
+    const id = await publicarDoacao();
+
+    const res = await request(app)
+      .post(`/api/doacoes/${id}/aceitar`)
+      .send({ ong: '   ' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toBe('Nome da ONG é obrigatório');
   });
 });
