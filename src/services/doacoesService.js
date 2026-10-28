@@ -1,5 +1,5 @@
 // Regras de negócio das doações.
-import * as repo from './repositorio.js';
+import * as repo from '../repositories/doacoesRepository.js';
 
 // História 1 — "um doador publica uma doação".
 // Critérios de aceite:

@@ -41,18 +41,19 @@ Os testes usam um banco separado, `pratocheio_teste` (criado pelo `docker/init.s
 
 A troca não é acidente de percurso: na Unidade 2 vocês registram a decisão em um **ADR** (alternativas, consequências, riscos) e na Unidade 3 executam a **refatoração** — com os testes existentes provando que o comportamento se manteve.
 
-O `src/db.js` foi desenhado para isso: ele expõe `query()` devolvendo `{ rows }`, então a troca do banco fica contida nele e não vaza para as regras de negócio.
+O `src/database/db.js` foi desenhado para isso: ele expõe `query()` devolvendo `{ rows }`, então a troca do banco fica contida nele e não vaza para as regras de negócio.
 
 **Como o PostgreSQL vai subir é decisão do grupo**, comparada no mesmo ADR: instalar o PostgreSQL na máquina, subir um contêiner, ou usar um serviço gerenciado gratuito (Neon, Supabase, Render). A disciplina não impõe o caminho — exige o banco alcançável por `DATABASE_URL`, o schema migrado e o CI verde. Cada opção tem custo e risco diferentes, e reconhecê-los é parte da decisão.
 
 ## Estrutura
 
 ```
-src/server.js        entrypoint (npm start)
-src/db.js            conexão e schema do banco (PostgreSQL)
-src/app.js           rotas da API
-src/doacoes.js       regras de negócio      <- implementar (U1)
-src/repositorio.js   acesso ao banco (SQL)  <- implementar (U1)
+src/server.js                           entrypoint (npm start)
+src/app.js                              configuração do Express e rota de saúde
+src/controllers/doacoesController.js    rotas HTTP de /api/doacoes
+src/services/doacoesService.js          regras de negócio
+src/repositories/doacoesRepository.js   acesso ao banco (SQL)
+src/database/db.js                      conexão e schema do banco (PostgreSQL)
 public/index.html    interface (funciona no celular)
 tests/               testes automatizados
 docs/analise.md      documento de análise   (Trabalho 1)
@@ -81,10 +82,10 @@ peça a revisão de **outro integrante**. Só então faça o merge.
 
 ## O que já está pronto e o que falta
 
-Pronto: estrutura do projeto, interface básica, rota de saúde, **conexão com o banco e o schema** (`src/db.js`), CI configurado e um teste passando (prova que a aplicação sobe).
+Pronto: estrutura do projeto, interface básica, rota de saúde, **conexão com o banco e o schema** (`src/database/db.js`), CI configurado e um teste passando (prova que a aplicação sobe).
 
-Falta (Trabalho 1 — walking skeleton): implementar `src/doacoes.js` (regras) e
-`src/repositorio.js` (SQL) para que a história zero funcione ponta a ponta —
+Falta (Trabalho 1 — walking skeleton): implementar `src/services/doacoesService.js` (regras) e
+`src/repositories/doacoesRepository.js` (SQL) para que a história zero funcione ponta a ponta —
 **um doador publica uma doação → uma ONG vê a doação → a ONG a aceita e ela sai da lista.**
 Os critérios de aceite estão em `tests/doacoes.test.js` como `it.todo`: troque cada um
 por um teste de verdade conforme implementa.
