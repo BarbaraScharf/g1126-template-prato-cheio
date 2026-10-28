@@ -1,6 +1,7 @@
 export default {
   test: {
-    // SQLite em memória: os testes não tocam o arquivo do banco de desenvolvimento.
-    env: { DATABASE_FILE: ':memory:' }
+    env: {
+      DATABASE_URL: process.env.DATABASE_URL || 'postgres://pratocheio:pratocheio@localhost:5432/pratocheio_teste'
+    }
   }
 };
