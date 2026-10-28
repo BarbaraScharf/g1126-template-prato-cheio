@@ -8,7 +8,7 @@
     "start": "node --no-warnings=ExperimentalWarning src/server.js",
     "dev": "node --no-warnings=ExperimentalWarning --watch src/server.js",
     "test": "vitest run",
-    "db:migrar": "node --no-warnings=ExperimentalWarning -e \"import('./src/db.js').then(async d=>{await d.migrar();console.log('schema criado');await d.encerrar()})\""
+    "db:migrar": "node --no-warnings=ExperimentalWarning -e \"import('./src/database/db.js').then(async d=>{await d.migrar();console.log('schema criado');await d.encerrar()})\""
   },
   "dependencies": {
     "express": "^4.19.2",
