@@ -1,7 +1,6 @@
 // Camada de dados do Prato Cheio — acesso ao banco.
 import { query } from './db.js';
 
-// Insere a doação e devolve a linha criada.
 export async function inserir({ tipo, quantidade, validade }) {
   const { rows } = await query(
     `INSERT INTO doacoes (tipo, quantidade, validade) VALUES (?, ?, ?) RETURNING *`,
@@ -10,15 +9,34 @@ export async function inserir({ tipo, quantidade, validade }) {
   return rows[0];
 }
 
-// Devolve apenas as doações com status 'disponivel'.
-export async function listarDisponiveis() {
+export async function listarDisponiveis(tipoFiltro) {
+  if (tipoFiltro) {
+    const { rows } = await query(
+      `SELECT * FROM doacoes WHERE status = 'disponivel' AND LOWER(tipo) LIKE LOWER(?) ORDER BY criada_em ASC`,
+      [`%${tipoFiltro}%`]
+    );
+    return rows;
+  }
   const { rows } = await query(
     `SELECT * FROM doacoes WHERE status = 'disponivel' ORDER BY criada_em ASC`
   );
   return rows;
 }
 
-// Busca uma doação pelo id (devolve undefined se não existir).
+export async function listarAceitas(ong) {
+  if (ong) {
+    const { rows } = await query(
+      `SELECT * FROM doacoes WHERE status IN ('aceita', 'concluida') AND LOWER(ong) = LOWER(?) ORDER BY criada_em DESC`,
+      [ong]
+    );
+    return rows;
+  }
+  const { rows } = await query(
+    `SELECT * FROM doacoes WHERE status IN ('aceita', 'concluida') ORDER BY criada_em DESC`
+  );
+  return rows;
+}
+
 export async function buscarPorId(id) {
   const { rows } = await query(
     `SELECT * FROM doacoes WHERE id = ?`,
@@ -27,14 +45,43 @@ export async function buscarPorId(id) {
   return rows[0];
 }
 
-// Atualização condicional: só muda o status se ainda estiver 'disponivel'.
-// Garante que duas ONGs não aceitem a mesma doação (sem lock extra).
 export async function aceitar(id, ong) {
   const { alteradas } = await query(
     `UPDATE doacoes SET status = 'aceita', ong = ? WHERE id = ? AND status = 'disponivel'`,
     [ong, id]
   );
-  if (alteradas === 0) return undefined; // já aceita ou não existe
+  if (alteradas === 0) return undefined;
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
+  return rows[0];
+}
+
+export async function cancelar(id) {
+  const { alteradas } = await query(
+    `UPDATE doacoes SET status = 'cancelada' WHERE id = ? AND status = 'disponivel'`,
+    [id]
+  );
+  if (alteradas === 0) return undefined;
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
+  return rows[0];
+}
+
+export async function concluir(id) {
+  const { alteradas } = await query(
+    `UPDATE doacoes SET status = 'concluida' WHERE id = ? AND status = 'aceita'`,
+    [id]
+  );
+  if (alteradas === 0) return undefined;
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
+  return rows[0];
+}
+
+// Devolve uma doação 'aceita' para a lista de 'disponivel' caso a ONG não possa retirar.
+export async function liberarReserva(id) {
+  const { alteradas } = await query(
+    `UPDATE doacoes SET status = 'disponivel', ong = NULL WHERE id = ? AND status = 'aceita'`,
+    [id]
+  );
+  if (alteradas === 0) return undefined;
   const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
   return rows[0];
 }
