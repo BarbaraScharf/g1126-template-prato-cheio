@@ -1,21 +1,13 @@
-// Conexão com o banco. Já vem pronto — não precisa mexer agora.
-//
-// UNIDADE 1: SQLite, embutido no Node (módulo `node:sqlite`) — nada para instalar.
-// UNIDADE 3: este arquivo será refatorado para PostgreSQL. A interface abaixo
-//            (`query` devolvendo `{ rows }`) foi desenhada para que a troca fique
-//            contida aqui, sem espalhar mudança pelo resto do código.
-// `node:sqlite` é módulo embutido do Node 22+. Carregado via createRequire porque
-// algumas ferramentas (como o Vite/Vitest) ainda não o reconhecem como embutido.
-import { createRequire } from 'node:module';
-const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite');
+// Conexão com o banco.
+import pg from 'pg';
 
-const ARQUIVO = process.env.DATABASE_FILE || 'dados.sqlite';
+const URL_PADRAO = 'postgres://pratocheio:pratocheio@localhost:5432/pratocheio';
 
-let db;
+let pool;
 
 export function conexao() {
-  if (!db) db = new DatabaseSync(ARQUIVO);
-  return db;
+  if (!pool) pool = new pg.Pool({ connectionString: process.env.DATABASE_URL || URL_PADRAO });
+  return pool;
 }
 
 /**
@@ -24,33 +16,32 @@ export function conexao() {
  *   query('SELECT * FROM doacoes WHERE id = ?', [id])
  */
 export async function query(sql, valores = []) {
-  const stmt = conexao().prepare(sql);
-  const ehLeitura = /^\s*(select|with)/i.test(sql) || /returning/i.test(sql);
-  if (ehLeitura) return { rows: stmt.all(...valores) };
-  const info = stmt.run(...valores);
-  return { rows: [], alteradas: info.changes };
+  let n = 0;
+  const sqlPg = sql.replace(/\?/g, () => `$${++n}`);
+  const resultado = await conexao().query(sqlPg, valores);
+  return { rows: resultado.rows, alteradas: resultado.rowCount };
 }
 
 /** Cria o schema, se ainda não existir. Rodado por `npm run db:migrar` e ao subir o servidor. */
 export async function migrar() {
-  conexao().exec(`
+  await conexao().query(`
     CREATE TABLE IF NOT EXISTS doacoes (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      id          SERIAL PRIMARY KEY,
       tipo        TEXT NOT NULL,
       quantidade  TEXT NOT NULL,
       validade    TEXT NOT NULL,
       status      TEXT NOT NULL DEFAULT 'disponivel',
       ong         TEXT,
-      criada_em   TEXT NOT NULL DEFAULT (datetime('now'))
+      criada_em   TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
 }
 
 /** Apaga todos os dados. Usado pelos testes. */
 export async function limparBanco() {
-  conexao().exec('DELETE FROM doacoes');
+  await conexao().query('DELETE FROM doacoes');
 }
 
 export async function encerrar() {
-  if (db) { db.close(); db = undefined; }
+  if (pool) { await pool.end(); pool = undefined; }
 }
