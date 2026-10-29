@@ -1,5 +1,5 @@
 // Camada de dados do Prato Cheio — acesso ao banco.
-import { query } from './db.js';
+import { query } from '../database/db.js';
 
 // Insere a doação e devolve a linha criada.
 export async function inserir({ tipo, quantidade, validade }) {

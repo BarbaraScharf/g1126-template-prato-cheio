@@ -1,5 +1,5 @@
 import { criarApp } from './app.js';
-import { migrar } from './db.js';
+import { migrar } from './database/db.js';
 
 const porta = process.env.PORT || 3000;
 

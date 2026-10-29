@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import { criarApp } from '../src/app.js';
-import { migrar, limparBanco, encerrar } from '../src/db.js';
+import { migrar, limparBanco, encerrar } from '../src/database/db.js';
 
 const app = criarApp();
 
