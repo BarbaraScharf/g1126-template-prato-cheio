@@ -5,6 +5,16 @@ import { migrar, limparBanco, encerrar } from '../src/database/db.js';
 
 const app = criarApp();
 
+// Helper: data AAAA-MM-DD de hoje + N dias, em horário local — o mesmo
+// referencial do service, que compara a validade com a meia-noite local.
+function hojeMais(dias) {
+  const data = new Date();
+  data.setDate(data.getDate() + dias);
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${data.getFullYear()}-${mes}-${dia}`;
+}
+
 // Este teste já passa e não depende do banco:
 // prova que a aplicação sobe e que o CI está funcionando.
 describe('a aplicação sobe', () => {
@@ -40,7 +50,7 @@ describe('publicar e listar doações', () => {
       .send({
         tipo: 'Sopa',
         quantidade: '10 porções',
-        validade: '2026-12-01'
+        validade: hojeMais(30)
       })
       .expect(201);
 
@@ -70,7 +80,7 @@ describe('publicar e listar doações', () => {
   it('recusa doação com números no tipo de alimento', async () => {
     const res = await request(app)
       .post('/api/doacoes')
-      .send({ tipo: 'Arroz123', quantidade: '5 kg', validade: '2026-12-01' });
+      .send({ tipo: 'Arroz123', quantidade: '5 kg', validade: hojeMais(30) });
 
     expect(res.status).toBe(400);
     expect(res.body.erro).toMatch(/não pode conter números/);
@@ -89,9 +99,22 @@ describe('publicar e listar doações', () => {
     expect(res.body.erro).toMatch(/data futura/);
   });
 
+  // História 1 / Critério: validade precisa existir no calendário
+  // Dado que o doador informou uma data inexistente (30 de fevereiro)
+  // Quando ele tenta publicar
+  // Então o sistema rejeita com mensagem de validade inválida
+  it('recusa doação com validade inexistente no calendário', async () => {
+    const res = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Sopa', quantidade: '5 porções', validade: '2027-02-30' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/Validade inválida/);
+  });
+
   // História 1 / Critério: validade hoje é válida (retirada no mesmo dia)
   it('aceita doação com validade igual à data de hoje', async () => {
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = hojeMais(0);
 
     const res = await request(app)
       .post('/api/doacoes')
@@ -130,7 +153,7 @@ describe('aceitar uma doação', () => {
       .send({
         tipo,
         quantidade: '5 kg',
-        validade: '2026-12-01'
+        validade: hojeMais(30)
       });
 
     return res.body.id;
@@ -199,6 +222,49 @@ describe('aceitar uma doação', () => {
     expect(res.status).toBe(400);
     expect(res.body.erro).toBe('Nome da ONG é obrigatório');
   });
+
+  // História 3 / Critério: id que não é número não corresponde a doação
+  // Dado que o id informado não é um número ("abc")
+  // Quando a ONG tenta aceitar
+  // Então o sistema informa que a doação não foi encontrada
+  it('recusa aceitar quando o id não é numérico', async () => {
+    const res = await request(app)
+      .post('/api/doacoes/abc/aceitar')
+      .send({ ong: 'ONG Esperança' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toBe('Doação não encontrada');
+  });
+
+  // História 3 / Critério: doação inexistente
+  // Dado que não existe doação com o id informado
+  // Quando a ONG tenta aceitar
+  // Então o sistema informa que a doação não foi encontrada
+  it('recusa aceitar uma doação inexistente', async () => {
+    const res = await request(app)
+      .post('/api/doacoes/99999/aceitar')
+      .send({ ong: 'ONG Esperança' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toBe('Doação não encontrada');
+  });
+
+  // História 3 / Critério: doação cancelada não pode ser aceita
+  // Dado que o doador cancelou a doação
+  // Quando uma ONG tenta aceitá-la
+  // Então o sistema impede e informa que ela não está mais disponível
+  it('recusa aceitar uma doação cancelada', async () => {
+    const id = await publicarDoacao();
+
+    await request(app).delete(`/api/doacoes/${id}`);
+
+    const res = await request(app)
+      .post(`/api/doacoes/${id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/não está mais disponível/);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -219,7 +285,7 @@ describe('cancelar uma doação', () => {
   async function publicarDoacao(tipo = 'Arroz') {
     const res = await request(app)
       .post('/api/doacoes')
-      .send({ tipo, quantidade: '3 kg', validade: '2026-12-01' });
+      .send({ tipo, quantidade: '3 kg', validade: hojeMais(30) });
     return res.body.id;
   }
 
@@ -278,6 +344,32 @@ describe('cancelar uma doação', () => {
     expect(res.status).toBe(400);
     expect(res.body.erro).toMatch(/não encontrada/);
   });
+
+  // Critério: id que não é número não corresponde a doação
+  // Dado que o id informado não é um número ("abc")
+  // Quando o doador tenta cancelar
+  // Então o sistema informa que a doação não foi encontrada
+  it('retorna erro ao tentar cancelar com id não numérico', async () => {
+    const res = await request(app).delete('/api/doacoes/abc');
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toBe('Doação não encontrada');
+  });
+
+  // Critério: doação já cancelada não pode ser cancelada de novo
+  // Dado que o doador já cancelou a doação
+  // Quando ele tenta cancelar outra vez
+  // Então o sistema recusa a segunda tentativa
+  it('recusa cancelar duas vezes a mesma doação', async () => {
+    const id = await publicarDoacao();
+
+    await request(app).delete(`/api/doacoes/${id}`).expect(200);
+
+    const res = await request(app).delete(`/api/doacoes/${id}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/não pode ser cancelada/);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -298,7 +390,7 @@ describe('filtrar doações por tipo', () => {
   async function publicar(tipo, quantidade = '2 kg') {
     await request(app)
       .post('/api/doacoes')
-      .send({ tipo, quantidade, validade: '2026-12-01' });
+      .send({ tipo, quantidade, validade: hojeMais(30) });
   }
 
   // Critério: filtro retorna só as doações do tipo informado
@@ -325,6 +417,20 @@ describe('filtrar doações por tipo', () => {
     await publicar('Arroz');
 
     const res = await request(app).get('/api/doacoes?tipo=arroz');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].tipo).toBe('Arroz');
+  });
+
+  // Critério: espaços em volta do filtro são ignorados
+  // Dado que há uma doação do tipo 'Arroz'
+  // Quando a ONG filtra por ' arroz ' (com espaços nas pontas)
+  // Então o sistema encontra a doação normalmente
+  it('ignora espaços em volta do tipo filtrado', async () => {
+    await publicar('Arroz');
+
+    const res = await request(app).get('/api/doacoes?tipo=%20arroz%20');
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
@@ -369,7 +475,7 @@ describe('filtrar doações por tipo', () => {
     // publica uma segunda do mesmo tipo e cancela
     const res2 = await request(app)
       .post('/api/doacoes')
-      .send({ tipo: 'Arroz', quantidade: '1 kg', validade: '2026-12-01' });
+      .send({ tipo: 'Arroz', quantidade: '1 kg', validade: hojeMais(30) });
     await request(app).delete(`/api/doacoes/${res2.body.id}`);
 
     const res = await request(app).get('/api/doacoes?tipo=Arroz');
