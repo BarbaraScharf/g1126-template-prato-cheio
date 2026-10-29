@@ -24,7 +24,9 @@ export async function criarDoacao({ tipo, quantidade, validade } = {}) {
   const dataValidade = new Date(validade.trim() + 'T00:00:00');
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
-  if (isNaN(dataValidade.getTime())) {
+  // Data inexistente (ex.: 2027-02-30) não vira NaN: o Date "rola" para o mês
+  // seguinte, então o dia lido deixa de bater com o dia digitado.
+  if (isNaN(dataValidade.getTime()) || dataValidade.getDate() !== Number(validade.trim().slice(8))) {
     throw new Error('Validade inválida: use o formato AAAA-MM-DD');
   }
   if (dataValidade < hoje) {
@@ -44,7 +46,13 @@ export async function criarDoacao({ tipo, quantidade, validade } = {}) {
 //   - com tipo → retorna só as que batem, insensível a maiúsculas
 //   - tipo sem correspondência → retorna []
 export async function listarDisponiveis(tipo) {
-  return repo.listarDisponiveisPorTipo(tipo);
+  return repo.listarDisponiveisPorTipo(tipo?.toString().trim());
+}
+
+// O id vem da URL como texto: só um inteiro positivo pode ser uma doação.
+// Checar antes de ir ao banco evita erro de tipo no PostgreSQL ("abc" em INTEGER).
+function idValido(id) {
+  return /^[1-9]\d*$/.test(String(id));
 }
 
 // História 3 — "uma ONG aceita uma doação".
@@ -56,7 +64,7 @@ export async function aceitar(id, ong) {
     throw new Error('Nome da ONG é obrigatório');
   }
 
-  const doacao = await repo.buscarPorId(id);
+  const doacao = idValido(id) && await repo.buscarPorId(id);
 
   if (!doacao) {
     throw new Error('Doação não encontrada');
@@ -77,7 +85,7 @@ export async function aceitar(id, ong) {
 //   - doação já aceita por ONG → não pode ser cancelada, erro informativo
 //   - doação disponível → status muda para 'cancelada' e some da lista
 export async function cancelar(id) {
-  const doacao = await repo.buscarPorId(id);
+  const doacao = idValido(id) && await repo.buscarPorId(id);
 
   if (!doacao) {
     throw new Error('Doação não encontrada');
