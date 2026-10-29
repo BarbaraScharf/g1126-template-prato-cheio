@@ -4,7 +4,7 @@ import { query } from '../database/db.js';
 // Insere a doação e devolve a linha criada.
 export async function inserir({ tipo, quantidade, validade }) {
   const { rows } = await query(
-    `INSERT INTO doacoes (tipo, quantidade, validade) VALUES (?, ?, ?) RETURNING *`,
+    `INSERT INTO doacoes (tipo, quantidade, validade) VALUES ($1, $2, $3) RETURNING *`,
     [tipo, quantidade, validade]
   );
   return rows[0];
@@ -18,50 +18,78 @@ export async function listarDisponiveis() {
   return rows;
 }
 
+// Devolve doações que já foram aceitas ou concluídas (para a aba de Reservadas).
+export async function listarAceitas() {
+  const { rows } = await query(
+    `SELECT * FROM doacoes WHERE status IN ('aceita', 'concluida') ORDER BY criada_em ASC`
+  );
+  return rows;
+}
+
 // Busca uma doação pelo id (devolve undefined se não existir).
 export async function buscarPorId(id) {
   const { rows } = await query(
-    `SELECT * FROM doacoes WHERE id = ?`,
+    `SELECT * FROM doacoes WHERE id = $1`,
     [id]
   );
   return rows[0];
 }
 
 // Atualização condicional: só muda o status se ainda estiver 'disponivel'.
-// Garante que duas ONGs não aceitem a mesma doação (sem lock extra).
 export async function aceitar(id, ong) {
-  const { alteradas } = await query(
-    `UPDATE doacoes SET status = 'aceita', ong = ? WHERE id = ? AND status = 'disponivel'`,
+  const resultado = await query(
+    `UPDATE doacoes SET status = 'aceita', ong = $1 WHERE id = $2 AND status = 'disponivel'`,
     [ong, id]
   );
-  if (alteradas === 0) return undefined; // já aceita ou não existe
-  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
+  if (resultado.rowCount === 0) return undefined;
+  
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = $1`, [id]);
   return rows[0];
 }
 
-// História 4 — cancela uma doação, mas só se ainda estiver 'disponivel'.
-// Doações aceitas não podem ser canceladas.
+// Cancela uma doação, mas só se ainda estiver 'disponivel'.
 export async function cancelar(id) {
-  const { alteradas } = await query(
-    `UPDATE doacoes SET status = 'cancelada' WHERE id = ? AND status = 'disponivel'`,
+  const resultado = await query(
+    `UPDATE doacoes SET status = 'cancelada' WHERE id = $1 AND status = 'disponivel'`,
     [id]
   );
-  if (alteradas === 0) return undefined;
-  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
+  if (resultado.rowCount === 0) return undefined;
+  
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = $1`, [id]);
   return rows[0];
 }
 
-// História 5 — lista doações disponíveis filtrando opcionalmente por tipo.
-// A comparação é insensível a maiúsculas/minúsculas.
+// Libera a reserva de volta para 'disponivel'.
+export async function liberar(id) {
+  const resultado = await query(
+    `UPDATE doacoes SET status = 'disponivel', ong = NULL WHERE id = $1 AND status = 'aceita'`,
+    [id]
+  );
+  if (resultado.rowCount === 0) return undefined;
+  
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = $1`, [id]);
+  return rows[0];
+}
+
+// Conclui a retirada da doação.
+export async function concluir(id) {
+  const resultado = await query(
+    `UPDATE doacoes SET status = 'concluida' WHERE id = $1 AND status = 'aceita'`,
+    [id]
+  );
+  if (resultado.rowCount === 0) return undefined;
+  
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = $1`, [id]);
+  return rows[0];
+}
+
+// Lista doações disponíveis filtrando opcionalmente por tipo.
 export async function listarDisponiveisPorTipo(tipo) {
   if (!tipo) {
-    const { rows } = await query(
-      `SELECT * FROM doacoes WHERE status = 'disponivel' ORDER BY criada_em ASC`
-    );
-    return rows;
+    return listarDisponiveis();
   }
   const { rows } = await query(
-    `SELECT * FROM doacoes WHERE status = 'disponivel' AND LOWER(tipo) = LOWER(?) ORDER BY criada_em ASC`,
+    `SELECT * FROM doacoes WHERE status = 'disponivel' AND LOWER(tipo) = LOWER($1) ORDER BY criada_em ASC`,
     [tipo]
   );
   return rows;

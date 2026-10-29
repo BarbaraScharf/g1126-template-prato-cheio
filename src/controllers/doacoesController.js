@@ -12,6 +12,15 @@ doacoesRouter.get('/', async (req, res) => {
   }
 });
 
+// Lista doações aceitas/reservadas ou concluídas (Aba Reservadas)
+doacoesRouter.get('/aceitas', async (req, res) => {
+  try {
+    res.json(await doacoes.listarAceitas());
+  } catch (erro) {
+    res.status(400).json({ erro: erro.message });
+  }
+});
+
 // H1 — publica uma doação
 doacoesRouter.post('/', async (req, res) => {
   try {
@@ -30,10 +39,28 @@ doacoesRouter.post('/:id/aceitar', async (req, res) => {
   }
 });
 
-// H4 — doador cancela uma doação disponível
-doacoesRouter.delete('/:id', async (req, res) => {
+// H4 — doador cancela uma doação
+doacoesRouter.post('/:id/cancelar', async (req, res) => {
   try {
     res.json(await doacoes.cancelar(req.params.id));
+  } catch (erro) {
+    res.status(400).json({ erro: erro.message });
+  }
+});
+
+// Liberar reserva (volta para disponíveis)
+doacoesRouter.post('/:id/liberar', async (req, res) => {
+  try {
+    res.json(await doacoes.liberar(req.params.id));
+  } catch (erro) {
+    res.status(400).json({ erro: erro.message });
+  }
+});
+
+// Concluir retirada da doação
+doacoesRouter.post('/:id/concluir', async (req, res) => {
+  try {
+    res.json(await doacoes.concluir(req.params.id));
   } catch (erro) {
     res.status(400).json({ erro: erro.message });
   }
