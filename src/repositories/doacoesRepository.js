@@ -38,3 +38,31 @@ export async function aceitar(id, ong) {
   const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
   return rows[0];
 }
+
+// História 4 — cancela uma doação, mas só se ainda estiver 'disponivel'.
+// Doações aceitas não podem ser canceladas.
+export async function cancelar(id) {
+  const { alteradas } = await query(
+    `UPDATE doacoes SET status = 'cancelada' WHERE id = ? AND status = 'disponivel'`,
+    [id]
+  );
+  if (alteradas === 0) return undefined;
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
+  return rows[0];
+}
+
+// História 5 — lista doações disponíveis filtrando opcionalmente por tipo.
+// A comparação é insensível a maiúsculas/minúsculas.
+export async function listarDisponiveisPorTipo(tipo) {
+  if (!tipo) {
+    const { rows } = await query(
+      `SELECT * FROM doacoes WHERE status = 'disponivel' ORDER BY criada_em ASC`
+    );
+    return rows;
+  }
+  const { rows } = await query(
+    `SELECT * FROM doacoes WHERE status = 'disponivel' AND LOWER(tipo) = LOWER(?) ORDER BY criada_em ASC`,
+    [tipo]
+  );
+  return rows;
+}
