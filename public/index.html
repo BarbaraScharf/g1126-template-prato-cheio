@@ -106,8 +106,12 @@
       for (const d of doacoes) {
         const li = document.createElement('li');
 
+        // formata data de AAAA-MM-DD para DD/MM/AAAA
+        const [ano, mes, dia] = d.validade.split('-');
+        const dataFormatada = `${dia}/${mes}/${ano}`;
+
         li.textContent =
-          `${d.tipo} — ${d.quantidade} (até ${d.validade}) `;
+          `${d.tipo} — ${d.quantidade} (retirar até ${dataFormatada}) `;
 
         const botao = document.createElement('button');
         botao.textContent = 'Aceitar';
@@ -151,6 +155,9 @@
     }
 
     document.getElementById('publicar').onclick = async () => {
+      const mensagem = document.getElementById('mensagem');
+      mensagem.className = '';
+
       const res = await fetch('/api/doacoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -161,14 +168,23 @@
         })
       });
 
-      if (res.ok) {
-        document.getElementById('tipo').value = '';
-        document.getElementById('quantidade').value = '';
-        document.getElementById('validade').value = '';
+      const resultado = await res.json();
+
+      if (!res.ok) {
+        mensagem.textContent = resultado.erro;
+        mensagem.className = 'erro';
+        return;
       }
+
+      document.getElementById('tipo').value = '';
+      document.getElementById('quantidade').value = '';
+      document.getElementById('validade').value = '';
 
       carregar();
     };
+
+    // Bloqueia datas anteriores a hoje no calendário
+    document.getElementById('validade').min = new Date().toISOString().slice(0, 10);
 
     carregar();
   </script>

@@ -15,24 +15,21 @@ Conecta doadores de alimentos excedentes a ONGs, antes que a comida se perca.
 
 ## Como rodar
 
-Requisito: **Node.js 22.13 ou superior**. Mais nada — o banco da Unidade 1 é SQLite, embutido no próprio Node.
+Requisitos: **Node.js 22.13 ou superior** e **Docker** (para o PostgreSQL).
 
 > Esta é a **stack preferencial** da disciplina. Se o seu grupo optar por outra, registre o ADR de justificativa e garanta os mesmos compromissos: repositório público com CI verde, rota de saúde, testes por um comando, os três comandos documentados aqui no README e banco relacional migrado para PostgreSQL na Unidade 3.
 
 ```bash
-npm install       # só na primeira vez
-npm run db:migrar # cria o schema (arquivo dados.sqlite)
-npm start         # sobe em http://localhost:3000
-npm test          # roda os testes
-npm run dev       # sobe recarregando a cada alteração
+docker compose up -d  # sobe o PostgreSQL (porta 5432)
+npm install           # só na primeira vez
+npm run db:migrar     # cria o schema
+npm start             # sobe em http://localhost:3000
+npm test              # roda os testes
+npm run dev           # sobe recarregando a cada alteração
 ```
 
-Os testes usam SQLite **em memória**, então não sujam o banco de desenvolvimento.
-
-> Ao rodar `npm test` o Node imprime `ExperimentalWarning: SQLite is an experimental feature`.
-> É esperado — o módulo embutido `node:sqlite` ainda é marcado como experimental. Não é erro e não reprova o CI.
-
-> **Atenção:** não deixe o repositório dentro de uma pasta sincronizada (OneDrive, Google Drive, Dropbox) nem em disco de rede. O SQLite precisa de trava de arquivo e nesses lugares falha com `disk I/O error`. Clone em uma pasta local comum, por exemplo `~/dev/`.
+A conexão usa `DATABASE_URL` (padrão: `postgres://pratocheio:pratocheio@localhost:5432/pratocheio`).
+Os testes usam um banco separado, `pratocheio_teste` (criado pelo `docker/init.sql`), então não sujam o banco de desenvolvimento.
 
 ## O banco: SQLite agora, PostgreSQL depois
 
@@ -52,7 +49,7 @@ O `src/db.js` foi desenhado para isso: ele expõe `query()` devolvendo `{ rows }
 
 ```
 src/server.js        entrypoint (npm start)
-src/db.js            conexão e schema do banco (pronto)
+src/db.js            conexão e schema do banco (PostgreSQL)
 src/app.js           rotas da API
 src/doacoes.js       regras de negócio      <- implementar (U1)
 src/repositorio.js   acesso ao banco (SQL)  <- implementar (U1)
