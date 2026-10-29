@@ -1,192 +1,545 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prato Cheio</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prato Cheio — Plataforma de Doações</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      margin: 0;
-      padding: 1rem;
-      max-width: 40rem;
+    body { font-family: 'Inter', sans-serif; }
+    @keyframes slideIn {
+      from { transform: translateY(-10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
-
-    h1 {
-      font-size: 1.3rem;
-    }
-
-    fieldset {
-      border: 1px solid #ccc;
-      border-radius: .5rem;
-      margin-bottom: 1rem;
-    }
-
-    label {
-      display: block;
-      margin: .5rem 0 .2rem;
-      font-size: .9rem;
-    }
-
-    input,
-    button {
-      font-size: 1rem;
-      padding: .6rem;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    button {
-      margin-top: .8rem;
-      cursor: pointer;
-    }
-
-    li {
-      border: 1px solid #ddd;
-      border-radius: .5rem;
-      padding: .6rem;
-      margin-bottom: .5rem;
-      list-style: none;
-    }
-
-    ul {
-      padding: 0;
-    }
-
-    .erro {
-      color: #b42318;
-      margin-top: .5rem;
-    }
-
-    .sucesso {
-      color: #027a48;
-      margin-top: .5rem;
-    }
+    .animate-in { animation: slideIn 0.2s ease-out forwards; }
   </style>
 </head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
 
-<body>
-  <h1>Prato Cheio</h1>
+  <!-- Toast Notification -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
 
-  <fieldset>
-    <legend>Publicar doação</legend>
+  <!-- Navbar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-sm shadow-emerald-600/20">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+          </svg>
+        </div>
+        <div>
+          <span class="font-bold text-lg tracking-tight text-slate-900">Prato Cheio</span>
+          <span class="hidden sm:inline-block ml-2 text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Evolução N2
+          </span>
+        </div>
+      </div>
 
-    <label for="tipo">Tipo de alimento</label>
-    <input id="tipo" placeholder="Ex.: sopa, pão, frutas">
+      <div class="flex items-center gap-3">
+        <div class="text-right hidden sm:block">
+          <p class="text-xs text-slate-500">Status do Mural</p>
+          <p id="contador-topo" class="text-sm font-semibold text-slate-800">0 disponíveis</p>
+        </div>
+        <button onclick="recarregarTudo()" title="Atualizar dados" class="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
 
-    <label for="quantidade">Quantidade</label>
-    <input id="quantidade" placeholder="Ex.: 10 porções">
+  <!-- Conteúdo Principal -->
+  <main class="max-w-6xl mx-auto w-full px-4 sm:px-6 py-8 flex-1">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-    <label for="validade">Validade / retirar até</label>
-    <input id="validade" type="date">
+      <!-- Coluna Esquerda: Formulário -->
+      <section class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+        <div class="mb-6">
+          <h2 class="text-lg font-bold text-slate-900">Publicar Nova Doação</h2>
+          <p class="text-sm text-slate-500 mt-1">Cadastre alimentos excedentes para coleta pelas ONGs parceiras.</p>
+        </div>
 
-    <button id="publicar">Publicar</button>
-  </fieldset>
+        <form id="form-doacao" class="space-y-5" novalidate>
+          <div>
+            <label for="tipo" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+              Alimento ou Refeição
+            </label>
+            <input
+              type="text"
+              id="tipo"
+              required
+              placeholder="Ex: Marmitas de Arroz, Feijão e Frango"
+              class="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+            >
+            <div class="flex flex-wrap gap-1.5 mt-2">
+              <button type="button" onclick="preencherCampo('tipo', 'Marmitas Prontas')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer">+ Marmitas</button>
+              <button type="button" onclick="preencherCampo('tipo', 'Pães e Padaria')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer">+ Pães</button>
+              <button type="button" onclick="preencherCampo('tipo', 'Frutas e Verduras')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer">+ Hortifruti</button>
+              <button type="button" onclick="preencherCampo('tipo', 'Cestas Básicas')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer">+ Cestas</button>
+            </div>
+          </div>
 
-  <h2>Doações disponíveis</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+            <div class="sm:col-span-3">
+              <label for="quantidade" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Quantidade
+              </label>
+              <input
+                type="text"
+                id="quantidade"
+                required
+                placeholder="Ex: 15 unidades, 8 kg..."
+                class="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+              >
+            </div>
 
-  <label for="ong">Nome da ONG</label>
-  <input id="ong" placeholder="Ex.: ONG Esperança">
+            <div class="sm:col-span-2">
+              <label for="validade" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Validade Limite
+              </label>
+              <input
+                type="date"
+                id="validade"
+                required
+                class="w-full px-3 py-2.5 bg-slate-50/50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+              >
+            </div>
+          </div>
 
-  <p id="mensagem"></p>
+          <button
+            type="submit"
+            class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-sm shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Publicar Doação</span>
+          </button>
+        </form>
+      </section>
 
-  <ul id="lista"></ul>
+      <!-- Coluna Direita: Abas + Listas -->
+      <section class="lg:col-span-7 space-y-4">
+        <!-- Barra de Abas e Filtro -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+            <button
+              id="tab-disponiveis"
+              onclick="mudarAba('disponiveis')"
+              class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-white text-slate-900 shadow-xs cursor-pointer"
+            >
+              Disponíveis
+            </button>
+            <button
+              id="tab-aceitas"
+              onclick="mudarAba('aceitas')"
+              class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 cursor-pointer"
+            >
+              Reservadas / Concluídas (ONGs)
+            </button>
+          </div>
+
+          <div class="relative w-full sm:w-52">
+            <input
+              type="text"
+              id="busca-rapida"
+              oninput="filtrarNaTela()"
+              placeholder="Filtrar por alimento ou ONG..."
+              class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500"
+            >
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Container dos Cards -->
+        <div id="lista-doacoes" class="space-y-3"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Modal Customizado para Aceitar Doação -->
+  <div id="modal-aceitar" class="fixed inset-0 z-40 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 animate-in">
+      <div class="flex items-start justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Reservar Doação para ONG</h3>
+            <p id="modal-resumo-item" class="text-xs text-slate-500"></p>
+          </div>
+        </div>
+        <button type="button" onclick="fecharModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">✕</button>
+      </div>
+
+      <form id="form-modal-aceitar" class="space-y-4">
+        <input type="hidden" id="modal-doacao-id">
+        <div>
+          <label for="nome-ong" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+            Nome da ONG / Instituição Beneficente
+          </label>
+          <input
+            type="text"
+            id="nome-ong"
+            required
+            placeholder="Ex: Mesa Solidária, Casa do Pão..."
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+          >
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onclick="fecharModal()"
+            class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold transition cursor-pointer"
+          >
+            Voltar
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer"
+          >
+            Confirmar Reserva
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
-    async function carregar() {
-      const res = await fetch('/api/doacoes');
-      const doacoes = await res.json();
+    let abaAtual = 'disponiveis';
+    let cacheDisponiveis = [];
+    let cacheAceitas = [];
 
-      const lista = document.getElementById('lista');
+    // Obtém a data de hoje no fuso local (YYYY-MM-DD) e bloqueia datas passadas no calendário
+    function obterDataHojeLocal() {
+      const hoje = new Date();
+      const ano = hoje.getFullYear();
+      const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+      const dia = String(hoje.getDate()).padStart(2, '0');
+      return `${ano}-${mes}-${dia}`;
+    }
 
-      lista.innerHTML = doacoes.length
-        ? ''
-        : '<li>Nenhuma doação disponível.</li>';
+    function configurarDataMinima() {
+      const inputValidade = document.getElementById('validade');
+      const hojeStr = obterDataHojeLocal();
+      inputValidade.min = hojeStr;
+      inputValidade.value = hojeStr;
+    }
 
-      for (const d of doacoes) {
-        const li = document.createElement('li');
+    configurarDataMinima();
 
-        // formata data de AAAA-MM-DD para DD/MM/AAAA
-        const [ano, mes, dia] = d.validade.split('-');
-        const dataFormatada = `${dia}/${mes}/${ano}`;
+    function preencherCampo(id, valor) {
+      const el = document.getElementById(id);
+      el.value = valor;
+      el.focus();
+    }
 
-        li.textContent =
-          `${d.tipo} — ${d.quantidade} (retirar até ${dataFormatada}) `;
+    function mostrarToast(mensagem, tipo = 'sucesso') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const cores = tipo === 'erro' ? 'bg-red-600 text-white' : 'bg-slate-900 text-white';
 
-        const botao = document.createElement('button');
-        botao.textContent = 'Aceitar';
+      toast.className = `pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium animate-in ${cores}`;
+      toast.innerHTML = `
+        <span>${escapeHtml(mensagem)}</span>
+        <button onclick="this.parentElement.remove()" class="opacity-70 hover:opacity-100 text-xs cursor-pointer">✕</button>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
 
-        botao.onclick = async () => {
-          const ong = document.getElementById('ong').value.trim();
-          const mensagem = document.getElementById('mensagem');
+    function formatarDataBR(dataStr) {
+      if (!dataStr) return '—';
+      const partes = dataStr.split('-');
+      if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+      return dataStr;
+    }
 
-          mensagem.className = '';
+    function mudarAba(novaAba) {
+      abaAtual = novaAba;
+      const btnDisp = document.getElementById('tab-disponiveis');
+      const btnAceitas = document.getElementById('tab-aceitas');
 
-          if (!ong) {
-            mensagem.textContent = 'Informe o nome da ONG para aceitar a doação.';
-            mensagem.className = 'erro';
-            return;
-          }
+      if (novaAba === 'disponiveis') {
+        btnDisp.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-white text-slate-900 shadow-xs cursor-pointer';
+        btnAceitas.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 cursor-pointer';
+      } else {
+        btnAceitas.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-white text-slate-900 shadow-xs cursor-pointer';
+        btnDisp.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 cursor-pointer';
+      }
+      recarregarTudo();
+    }
 
-          const res = await fetch(`/api/doacoes/${d.id}/aceitar`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ong })
-          });
+    async function recarregarTudo() {
+      try {
+        const [resDisp, resAceitas] = await Promise.all([
+          fetch('/api/doacoes'),
+          fetch('/api/doacoes/aceitas')
+        ]);
+        cacheDisponiveis = await resDisp.json();
+        cacheAceitas = resAceitas.ok ? await resAceitas.json() : [];
 
-          const resultado = await res.json();
+        document.getElementById('contador-topo').textContent =
+          `${cacheDisponiveis.length} ${cacheDisponiveis.length === 1 ? 'disponível' : 'disponíveis'}`;
 
-          if (!res.ok) {
-            mensagem.textContent = resultado.erro;
-            mensagem.className = 'erro';
-            return;
-          }
-
-          mensagem.textContent =
-            `Doação aceita pela ${resultado.ong}.`;
-          mensagem.className = 'sucesso';
-
-          carregar();
-        };
-
-        li.appendChild(botao);
-        lista.appendChild(li);
+        filtrarNaTela();
+      } catch (err) {
+        mostrarToast('Erro ao sincronizar com o servidor', 'erro');
       }
     }
 
-    document.getElementById('publicar').onclick = async () => {
-      const mensagem = document.getElementById('mensagem');
-      mensagem.className = '';
+    function filtrarNaTela() {
+      const termo = document.getElementById('busca-rapida').value.toLowerCase().trim();
+      const base = abaAtual === 'disponiveis' ? cacheDisponiveis : cacheAceitas;
 
-      const res = await fetch('/api/doacoes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo: document.getElementById('tipo').value,
-          quantidade: document.getElementById('quantidade').value,
-          validade: document.getElementById('validade').value
-        })
-      });
+      if (!termo) return renderizarLista(base);
 
-      const resultado = await res.json();
+      const filtradas = base.filter(d =>
+        d.tipo?.toLowerCase().includes(termo) ||
+        d.quantidade?.toLowerCase().includes(termo) ||
+        d.ong?.toLowerCase().includes(termo)
+      );
+      renderizarLista(filtradas);
+    }
 
-      if (!res.ok) {
-        mensagem.textContent = resultado.erro;
-        mensagem.className = 'erro';
+    function renderizarLista(doacoes) {
+      const container = document.getElementById('lista-doacoes');
+
+      if (!Array.isArray(doacoes) || doacoes.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
+            <p class="text-sm font-semibold text-slate-700">Nenhum registo encontrado nesta aba</p>
+            <p class="text-xs text-slate-500 mt-1">
+              ${abaAtual === 'disponiveis'
+                ? 'Utilize o formulário ao lado para publicar uma nova doação.'
+                : 'Quando uma ONG aceitar uma doação, ela aparecerá aqui para confirmação de retirada.'}
+            </p>
+          </div>
+        `;
         return;
       }
 
-      document.getElementById('tipo').value = '';
-      document.getElementById('quantidade').value = '';
-      document.getElementById('validade').value = '';
+      container.innerHTML = doacoes.map(d => {
+        if (abaAtual === 'disponiveis') {
+          return `
+            <div class="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs hover:shadow-md transition flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Disponível
+                  </span>
+                  <span class="text-xs text-slate-400">#${d.id}</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-900">${escapeHtml(d.tipo)}</h3>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                  <span><strong class="text-slate-700">Quantidade:</strong> ${escapeHtml(d.quantidade)}</span>
+                  <span><strong class="text-slate-700">Validade:</strong> ${escapeHtml(formatarDataBR(d.validade))}</span>
+                </div>
+              </div>
 
-      carregar();
-    };
+              <div class="flex items-center gap-2 shrink-0">
+                <button
+                  onclick="cancelarDoacao(${d.id})"
+                  class="px-3 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition cursor-pointer"
+                  title="Cancelar publicação (História 4)"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onclick="abrirModalAceitar(${d.id}, '${escapeAttr(d.tipo)}', '${escapeAttr(d.quantidade)}')"
+                  class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <span>Aceitar Doação</span>
+                </button>
+              </div>
+            </div>
+          `;
+        } else {
+          const ehConcluida = d.status === 'concluida';
+          const badge = ehConcluida
+            ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300">✓ Retirada Concluída</span>`
+            : `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Aguardando Retirada</span>`;
 
-    // Bloqueia datas anteriores a hoje no calendário
-    document.getElementById('validade').min = new Date().toISOString().slice(0, 10);
+          return `
+            <div class="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2">
+                  ${badge}
+                  <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    ONG: ${escapeHtml(d.ong || 'Não informada')}
+                  </span>
+                  <span class="text-xs text-slate-400">#${d.id}</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-900">${escapeHtml(d.tipo)}</h3>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                  <span><strong class="text-slate-700">Quantidade:</strong> ${escapeHtml(d.quantidade)}</span>
+                  <span><strong class="text-slate-700">Validade:</strong> ${escapeHtml(formatarDataBR(d.validade))}</span>
+                </div>
+              </div>
 
-    carregar();
+              <div class="flex items-center gap-2 shrink-0">
+                ${!ehConcluida ? `
+                  <button
+                    onclick="liberarDoacao(${d.id})"
+                    class="px-3 py-2.5 rounded-xl border border-amber-300 text-amber-700 hover:bg-amber-50 text-xs font-semibold transition cursor-pointer"
+                    title="Devolver para a lista de disponíveis caso a ONG não possa retirar"
+                  >
+                    Liberar Reserva
+                  </button>
+                  <button
+                    onclick="concluirDoacao(${d.id})"
+                    class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition cursor-pointer"
+                  >
+                    Confirmar Retirada
+                  </button>
+                ` : `
+                  <span class="text-xs font-medium text-slate-400 px-3 py-2">Entregue</span>
+                `}
+              </div>
+            </div>
+          `;
+        }
+      }).join('');
+    }
+
+    // Criar Doação
+    document.getElementById('form-doacao').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const dados = {
+        tipo: document.getElementById('tipo').value,
+        quantidade: document.getElementById('quantidade').value,
+        validade: document.getElementById('validade').value
+      };
+
+      if (dados.validade && dados.validade < obterDataHojeLocal()) {
+        mostrarToast('A data de validade não pode ser anterior à data de hoje', 'erro');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/doacoes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dados)
+        });
+
+        const resultado = await res.json();
+        if (!res.ok) throw new Error(resultado.erro || 'Erro ao cadastrar doação');
+
+        mostrarToast('Doação publicada com sucesso!');
+        document.getElementById('tipo').value = '';
+        document.getElementById('quantidade').value = '';
+        configurarDataMinima();
+        recarregarTudo();
+      } catch (err) {
+        mostrarToast(err.message, 'erro');
+      }
+    });
+
+    // Cancelar Doação (História 4)
+    async function cancelarDoacao(id) {
+      try {
+        const res = await fetch(`/api/doacoes/${id}/cancelar`, { method: 'POST' });
+        const resultado = await res.json();
+        if (!res.ok) throw new Error(resultado.erro || 'Erro ao cancelar doação');
+
+        mostrarToast('Doação cancelada pelo doador.');
+        recarregarTudo();
+      } catch (err) {
+        mostrarToast(err.message, 'erro');
+      }
+    }
+
+    // Liberar Reserva de volta para Disponíveis
+    async function liberarDoacao(id) {
+      try {
+        const res = await fetch(`/api/doacoes/${id}/liberar`, { method: 'POST' });
+        const resultado = await res.json();
+        if (!res.ok) throw new Error(resultado.erro || 'Erro ao liberar reserva');
+
+        mostrarToast('Reserva desfeita! A doação voltou para o mural de disponíveis.');
+        recarregarTudo();
+      } catch (err) {
+        mostrarToast(err.message, 'erro');
+      }
+    }
+
+    // Concluir Retirada (História 5)
+    async function concluirDoacao(id) {
+      try {
+        const res = await fetch(`/api/doacoes/${id}/concluir`, { method: 'POST' });
+        const resultado = await res.json();
+        if (!res.ok) throw new Error(resultado.erro || 'Erro ao concluir retirada');
+
+        mostrarToast('Retirada confirmada com sucesso!');
+        recarregarTudo();
+      } catch (err) {
+        mostrarToast(err.message, 'erro');
+      }
+    }
+
+    // Modal Aceitar
+    function abrirModalAceitar(id, tipo, quantidade) {
+      document.getElementById('modal-doacao-id').value = id;
+      document.getElementById('modal-resumo-item').textContent = `${tipo} (${quantidade})`;
+      const modal = document.getElementById('modal-aceitar');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => document.getElementById('nome-ong').focus(), 50);
+    }
+
+    function fecharModal() {
+      const modal = document.getElementById('modal-aceitar');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.getElementById('form-modal-aceitar').reset();
+    }
+
+    document.getElementById('form-modal-aceitar').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('modal-doacao-id').value;
+      const ong = document.getElementById('nome-ong').value;
+
+      try {
+        const res = await fetch(`/api/doacoes/${id}/aceitar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ong })
+        });
+
+        const resultado = await res.json();
+        if (!res.ok) throw new Error(resultado.erro || 'Erro ao aceitar doação');
+
+        fecharModal();
+        mostrarToast(`Reservada para ${ong}! Confira na aba Reservadas.`);
+        recarregarTudo();
+      } catch (err) {
+        mostrarToast(err.message, 'erro');
+      }
+    });
+
+    function escapeHtml(str = '') {
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function escapeAttr(str = '') {
+      return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    recarregarTudo();
   </script>
 </body>
 </html>
