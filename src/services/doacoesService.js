@@ -28,6 +28,15 @@ export async function criarDoacao({ tipo, quantidade, validade } = {}) {
   if (isNaN(dataValidade.getTime())) {
     throw new Error('Validade inválida: use o formato AAAA-MM-DD');
   }
+  // Verifica se a data não foi "arredondada" pelo JS (ex: 30/02 vira 02/03)
+  const [anoStr, mesStr, diaStr] = validade.trim().split('-');
+  if (
+    dataValidade.getFullYear() !== Number(anoStr) ||
+    dataValidade.getMonth() + 1 !== Number(mesStr) ||
+    dataValidade.getDate() !== Number(diaStr)
+  ) {
+    throw new Error('Validade inválida: use o formato AAAA-MM-DD');
+  }
   if (dataValidade < hoje) {
     throw new Error('Validade deve ser hoje ou uma data futura');
   }
