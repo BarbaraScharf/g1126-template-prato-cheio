@@ -7,7 +7,6 @@
 // funcional quando o container está disponível.
 
 import { createRequire } from 'node:module';
-import pg from 'pg';
 
 const usarSQLite = !!process.env.DATABASE_FILE;
 
@@ -27,8 +26,13 @@ function obterSQLite() {
 const URL_PADRAO = 'postgres://pratocheio:pratocheio@localhost:5432/pratocheio';
 let pool;
 
-function obterPG() {
-  if (!pool) pool = new pg.Pool({ connectionString: process.env.DATABASE_URL || URL_PADRAO });
+async function obterPG() {
+  if (!pool) {
+    // Import dinâmico: pg só é carregado quando realmente necessário (produção/CI).
+    // Evita que o Vitest tente resolver pg durante os testes com SQLite.
+    const { default: pg } = await import('pg');
+    pool = new pg.Pool({ connectionString: process.env.DATABASE_URL || URL_PADRAO });
+  }
   return pool;
 }
 
@@ -46,7 +50,7 @@ export async function query(sql, valores = []) {
 
   let n = 0;
   const sqlPg = sql.replace(/\?/g, () => `$${++n}`);
-  const resultado = await obterPG().query(sqlPg, valores);
+  const resultado = await (await obterPG()).query(sqlPg, valores);
   return { rows: resultado.rows, alteradas: resultado.rowCount };
 }
 
@@ -66,7 +70,7 @@ export async function migrar() {
     return;
   }
 
-  await obterPG().query(`
+  await (await obterPG()).query(`
     CREATE TABLE IF NOT EXISTS doacoes (
       id          SERIAL PRIMARY KEY,
       tipo        TEXT NOT NULL,
@@ -84,7 +88,7 @@ export async function limparBanco() {
     obterSQLite().exec('DELETE FROM doacoes');
     return;
   }
-  await obterPG().query('DELETE FROM doacoes');
+  await (await obterPG()).query('DELETE FROM doacoes');
 }
 
 export async function encerrar() {
@@ -92,5 +96,5 @@ export async function encerrar() {
     if (sqliteDb) { sqliteDb.close(); sqliteDb = undefined; }
     return;
   }
-  if (pool) { await pool.end(); pool = undefined; }
+  if (pool) { const p = pool; pool = undefined; await p.end(); }
 }

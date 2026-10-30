@@ -18,7 +18,7 @@ Conecta doadores de alimentos excedentes a ONGs, antes que a comida se perca.
 
 ```bash
 npm install           # instala as dependências
-npm test              # roda os 20 testes (usa SQLite em memória, sem Docker)
+npm test              # roda os 27 testes (usa SQLite em memória, sem Docker)
 npm start             # sobe em http://localhost:3000
 ```
 
@@ -80,6 +80,7 @@ docs/
   projeto.md                        Trabalho 2 — decisões e RNFs
   adr/                              ADRs (decisões arquiteturais)
   retrospectivas/                   retrospectivas de cada iteração
+  diagramas.md                      diagramas UML (Estados e Sequência)
 .github/workflows/ci.yml            pipeline de CI
 docker-compose.yml                  PostgreSQL para desenvolvimento
 ```
@@ -92,11 +93,11 @@ docker-compose.yml                  PostgreSQL para desenvolvimento
 npm test
 ```
 
-Todos os 20 testes rodam com SQLite em memória — sem Docker, sem configuração extra.
+Todos os 27 testes rodam com SQLite em memória — sem Docker, sem configuração extra.
 
 ```
 Test Files  1 passed (1)
-     Tests  20 passed (20)
+     Tests  27 passed (27)
 ```
 
 ---

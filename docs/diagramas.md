@@ -1,178 +1,165 @@
 # Diagramas — Prato Cheio
 
-*Atividade Avaliativa — Trabalho em Equipe — N2*
+*Iteração 2 · 28/10/2026 · Grupo: Bárbara, Ana, Leonardo, Marcelo, Willian*  
+*Ferramenta de IA utilizada: Kiro (Claude)*
 
 ---
 
-## Parte 1 — Diagramas escolhidos e justificativa
+## Diagramas escolhidos e justificativa
 
-### Diagrama 1: Casos de Uso (UML)
-**Justificativa:** O diagrama de casos de uso permite identificar quem interage com o sistema (Doador e ONG) e quais funcionalidades cada ator utiliza. Como o Prato Cheio tem duas personas distintas com responsabilidades diferentes (publicar vs. aceitar/filtrar), esse diagrama esclarece os limites do sistema e as dependências entre os casos de uso — especialmente as relações `«include»` e `«extend»` que refletem regras de negócio como a validação obrigatória antes de publicar.
-
-### Diagrama 2: Classes (UML)
-**Justificativa:** O diagrama de classes representa a arquitetura em camadas do sistema (Controller → Service → Repository → Db) e a entidade central `Doacao` com seus atributos e estados. Esse diagrama é útil para comunicar as decisões de projeto — especialmente a separação de responsabilidades e a abstração do banco de dados — e para verificar se a implementação é coerente com o modelo.
-
----
-
-## Parte 2 — Versões iniciais geradas pela IA
-
-### Versão inicial — Diagrama de Casos de Uso (gerado por IA)
-
-```
-Atores: Doador, ONG
-Casos de uso iniciais gerados:
-- UC1: Publicar doação
-- UC2: Listar doações
-- UC3: Aceitar doação
-- UC5: Filtrar doações
-
-Problemas na versão inicial:
-- UC4 (Cancelar doação) estava ausente
-- Não havia relações «include» entre publicar e validar dados
-- A regra de "aceite único" (primeira ONG vence) não estava representada
-- As restrições (doação aceita não pode ser cancelada) não apareciam
-```
-
-### Versão inicial — Diagrama de Classes (gerado por IA)
-
-```
-Versão inicial gerada pela IA:
-- Classe única "Doacao" com atributos básicos
-- Sem separação em camadas (Controller, Service, Repository, Db)
-- Sem distinção entre SQLite e PostgreSQL
-- Sem o enum StatusDoacao (disponivel, aceita, cancelada)
-- Métodos misturados sem responsabilidade clara
-```
+| # | Tipo | Justificativa |
+|---|---|---|
+| 1 | **Estados (UML)** | Uma doação passa por estados bem definidos (`disponivel`, `aceita`, `cancelada`). O diagrama de estados deixa visível quais transições são permitidas e quais são bloqueadas — especialmente a regra de que uma doação aceita não pode ser cancelada. |
+| 2 | **Sequência (UML)** | O fluxo de aceite de doação envolve vários componentes (Controller → Service → Repository → Banco) e tem um cenário crítico de concorrência. O diagrama de sequência mostra a ordem das mensagens e o comportamento em caso de corrida entre duas ONGs. |
 
 ---
 
-## Parte 3 — Análise crítica: problemas identificados
+## Diagrama 1 — Estados de uma Doação
 
-### Problema 1 — Casos de Uso: H4 (cancelar doação) ausente e restrições não representadas
-
-**Problema:** A versão inicial gerada pela IA não incluía UC4 (Cancelar doação — H4) e não representava as restrições das regras de negócio: doações já aceitas não podem ser canceladas, e o aceite é exclusivo para a primeira ONG.
-
-**Justificativa:** H4 é uma história implementada no sistema (`DELETE /api/doacoes/:id`) e sua ausência tornava o diagrama inconsistente com a implementação real. As restrições são regras de negócio críticas — a condição de corrida no aceite é inclusive o risco de maior impacto registrado na análise.
-
-**Correção:** Adicionamos UC4 com o ator Doador, incluímos a relação `«include»` com "Verificar status 'disponivel'" (compartilhada com UC3) e adicionamos notas explicando as restrições de negócio.
-
----
-
-### Problema 2 — Diagrama de Classes: ausência da abstração dual SQLite/PostgreSQL e do enum de status
-
-**Problema:** A IA gerou um diagrama com uma única classe de banco de dados sem representar que o sistema suporta dois SGBDs (SQLite para testes, PostgreSQL para produção), nem o enum `StatusDoacao` com os três estados possíveis (`disponivel`, `aceita`, `cancelada`).
-
-**Justificativa:** A dualidade SQLite/PostgreSQL é uma das principais decisões arquiteturais da iteração (ADR-0001) e está implementada no `src/database/db.js`. Omitir isso tornava o diagrama incapaz de comunicar a decisão mais importante do projeto. O enum de status é fundamental para entender as regras de negócio — os estados determinam o que pode ou não ser feito com cada doação.
-
-**Correção:** Adicionamos `SQLiteDatabase` e `PostgresPool` como classes separadas dentro do módulo `Db`, com a lógica de seleção via `usarSQLite: boolean`. Adicionamos o enum `StatusDoacao` com os três valores e uma nota explicando o UPDATE condicional.
-
----
-
-## Parte 4 — Versões finais
-
-Os diagramas finais estão disponíveis como imagens em `docs/`:
-- Versão final do Diagrama de Casos de Uso (ver PDF anexo)
-- Versão final do Diagrama de Classes (ver PDF anexo)
-
-### Diagrama de Casos de Uso — versão final (Mermaid)
+### Versão inicial gerada pela IA
 
 ```mermaid
-graph LR
-  Doador((Doador))
-  ONG((ONG))
-
-  subgraph Sistema Prato Cheio
-    UC1[UC1 - Publicar doação\nH1]
-    UC2[UC2 - Listar doações\ndisponíveis H2]
-    UC3[UC3 - Aceitar doação\nH3]
-    UC4[UC4 - Cancelar doação\nH4]
-    UC5[UC5 - Filtrar doações\npor tipo H5]
-    VAL[Validar dados da doação\ncampos obrigatórios, tipo sem números,\nvalidade hoje ou futura]
-    STATUS[Verificar status\ndisponivel]
-    ONG_NAME[Informar nome da ONG]
-    ACEITE[Garantir aceite único\nUPDATE condicional]
-  end
-
-  Doador --> UC1
-  Doador --> UC4
-  ONG --> UC3
-  ONG --> UC5
-  UC5 -.->|extend| UC2
-  UC1 -.->|include| VAL
-  UC4 -.->|include| STATUS
-  UC3 -.->|include| ONG_NAME
-  UC3 -.->|include| ACEITE
-```
-
-### Diagrama de Classes — versão final (Mermaid)
-
-```mermaid
-classDiagram
-  class Server {
-    -porta: number
-    +iniciar()
-  }
-  class App {
-    +criarApp() Express
-  }
-  class DoacoesController {
-    +GET / listarDisponiveis
-    +POST / criarDoacao
-    +POST /:id/aceitar aceitar
-    +DELETE /:id cancelar
-  }
-  class DoacoesService {
-    +criarDoacao(dados) Doacao
-    +listarDisponiveis(tipo) Doacao[]
-    +aceitar(id, ong) Doacao
-    +cancelar(id) Doacao
-  }
-  class DoacoesRepository {
-    +inserir(dados) Doacao
-    +listarDisponiveis() Doacao[]
-    +listarDisponiveisPorTipo(tipo) Doacao[]
-    +buscarPorId(id) Doacao
-    +aceitar(id, ong) Doacao
-    +cancelar(id) Doacao
-  }
-  class Db {
-    -usarSQLite: boolean
-    +query(sql, valores) Resultado
-    +migrar()
-    +limparBanco()
-    +encerrar()
-  }
-  class Doacao {
-    +id: number
-    +tipo: string
-    +quantidade: string
-    +validade: string
-    +status: StatusDoacao
-    +ong: string
-    +criadaEm: datetime
-  }
-  class StatusDoacao {
-    <<enumeration>>
-    disponivel
-    aceita
-    cancelada
-  }
-
-  Server --> App
-  App --> DoacoesController
-  DoacoesController --> DoacoesService
-  DoacoesService --> DoacoesRepository
-  DoacoesRepository --> Db
-  Db ..> Doacao
-  Doacao --> StatusDoacao
+stateDiagram-v2
+    [*] --> disponivel : doador publica
+    disponivel --> aceita : ONG aceita
+    disponivel --> cancelada : doador cancela
+    aceita --> [*]
+    cancelada --> [*]
 ```
 
 ---
 
-## Ferramenta de IA utilizada
+### Análise crítica — problemas identificados
 
-- **Gemini (Google)** — geração das versões iniciais dos diagramas
-- **Kiro / Claude** — apoio na identificação dos problemas e na escrita da análise crítica
+**Problema 1:** A IA não representou a regra de negócio que impede o cancelamento de uma doação já aceita. No diagrama acima, não há nenhuma indicação de que a transição `aceita → cancelada` é proibida — quem lê o diagrama pode entender que é possível.
+
+> **Justificativa:** Em `doacoesService.js`, a função `cancelar()` verifica explicitamente `if (doacao.status === 'aceita') throw new Error(...)`. Omitir essa restrição torna o diagrama inconsistente com a implementação real.
+
+> **Correção:** Adicionar uma nota explícita de transição bloqueada entre `aceita` e `cancelada`, e representar o estado final de cada caminho com clareza.
+
+---
+
+**Problema 2:** A IA não representou o estado de erro/rejeição — quando o id não existe ou a doação já foi aceita por outra ONG, o sistema retorna 400 sem mudar de estado. O diagrama sugere que toda tentativa de aceite sempre transiciona para `aceita`.
+
+> **Justificativa:** O UPDATE condicional `WHERE status = 'disponivel'` pode retornar `alteradas = 0`, mantendo o estado inalterado. Isso é um caminho alternativo relevante que o diagrama original ignora.
+
+> **Correção:** Adicionar uma transição de auto-loop em `disponivel` representando a tentativa de aceite que falha (concorrência), e em `aceita` representando a tentativa de cancelamento bloqueada.
+
+---
+
+### Versão corrigida pelo grupo
+
+```mermaid
+stateDiagram-v2
+    [*] --> disponivel : doador publica\n(tipo, quantidade, validade válidos)
+
+    disponivel --> aceita : ONG aceita\n(ong informada, UPDATE condicional OK)
+    disponivel --> disponivel : tentativa de aceite falha\n(outra ONG chegou primeiro —\nalteradas = 0)
+    disponivel --> cancelada : doador cancela\n(DELETE lógico)
+
+    aceita --> aceita : tentativa de cancelamento\nbloqueada pelo service\n[status = 'aceita' → erro 400]
+
+    cancelada --> cancelada : nova tentativa de cancelamento\nbloqueada\n[status ≠ 'disponivel' → erro 400]
+
+    aceita --> [*] : fim do ciclo de vida
+    cancelada --> [*] : fim do ciclo de vida
+
+    note right of disponivel
+        Única saída para aceite válido:
+        UPDATE ... WHERE status = 'disponivel'
+        garante atomicidade sem lock explícito
+    end note
+```
+
+---
+
+## Diagrama 2 — Sequência: ONG aceita uma doação (incluindo concorrência)
+
+### Versão inicial gerada pela IA
+
+```mermaid
+sequenceDiagram
+    actor ONG
+    participant API
+    participant Service
+    participant Banco
+
+    ONG->>API: POST /api/doacoes/:id/aceitar { ong }
+    API->>Service: aceitar(id, ong)
+    Service->>Banco: UPDATE doacoes SET status='aceita'
+    Banco-->>Service: ok
+    Service-->>API: doação atualizada
+    API-->>ONG: 200 { status: 'aceita' }
+```
+
+---
+
+### Análise crítica — problemas identificados
+
+**Problema 3:** A IA ignorou a camada de Repository. O Service não fala diretamente com o Banco — ele chama `repo.buscarPorId()` e depois `repo.aceitar()`, que são funções do Repository. O diagrama colapsa duas camadas em uma, o que é inconsistente com a arquitetura real do projeto (Controller → Service → Repository → db.js → Banco).
+
+> **Justificativa:** A separação em camadas é uma decisão arquitetural documentada no ADR-0002. Representar Service falando diretamente com o Banco contradiz essa decisão e confunde quem vai manter o código.
+
+> **Correção:** Adicionar o participante Repository entre Service e Banco, com as duas chamadas reais: `buscarPorId` e `aceitar`.
+
+---
+
+**Problema 4:** A IA não representou os fluxos alternativos — validação do nome da ONG, doação não encontrada e concorrência (duas ONGs tentando aceitar ao mesmo tempo). O diagrama mostra apenas o caminho feliz.
+
+> **Justificativa:** O cenário de concorrência é o mais crítico do sistema e motivou o UPDATE condicional. Omiti-lo no diagrama de sequência perde justamente o aspecto que torna essa operação não trivial.
+
+> **Correção:** Adicionar blocos `alt` para os três casos: ONG sem nome, doação não encontrada e concorrência (alteradas = 0).
+
+---
+
+### Versão corrigida pelo grupo
+
+```mermaid
+sequenceDiagram
+    actor ONG
+    participant Controller
+    participant Service
+    participant Repository
+    participant Banco
+
+    ONG->>Controller: POST /api/doacoes/:id/aceitar\n{ ong: "ONG Esperança" }
+
+    Controller->>Service: aceitar(id, ong)
+
+    alt ong vazia ou só espaços
+        Service-->>Controller: throw "Nome da ONG é obrigatório"
+        Controller-->>ONG: 400 { erro: "Nome da ONG é obrigatório" }
+    else id não numérico
+        Service-->>Controller: throw "Doação não encontrada"
+        Controller-->>ONG: 400 { erro: "Doação não encontrada" }
+    else id válido
+        Service->>Repository: buscarPorId(id)
+        Repository->>Banco: SELECT * FROM doacoes WHERE id = ?
+        Banco-->>Repository: linha | undefined
+
+        alt doação não existe
+            Repository-->>Service: undefined
+            Service-->>Controller: throw "Doação não encontrada"
+            Controller-->>ONG: 400 { erro: "Doação não encontrada" }
+        else doação existe
+            Service->>Repository: aceitar(id, ong)
+            Repository->>Banco: UPDATE doacoes SET status='aceita', ong=?\nWHERE id=? AND status='disponivel'
+            Banco-->>Repository: alteradas = 1 | 0
+
+            alt alteradas = 0 (concorrência — outra ONG chegou primeiro)
+                Repository-->>Service: undefined
+                Service-->>Controller: throw "Doação não está mais disponível"
+                Controller-->>ONG: 400 { erro: "Doação não está mais disponível" }
+            else alteradas = 1 (sucesso)
+                Repository->>Banco: SELECT * FROM doacoes WHERE id = ?
+                Banco-->>Repository: linha atualizada
+                Repository-->>Service: doação { status: 'aceita', ong: ... }
+                Service-->>Controller: doação atualizada
+                Controller-->>ONG: 200 { status: 'aceita', ong: "ONG Esperança" }
+            end
+        end
+    end
+```
 
 ---
 
@@ -180,17 +167,6 @@ classDiagram
 
 **Qual dos dois diagramas foi mais útil para compreender ou questionar uma decisão do projeto?**
 
-O **Diagrama de Classes** foi mais útil. Ao tentar representar a arquitetura em camadas, o grupo percebeu que a versão inicial da IA não refletia a decisão mais importante da iteração: a abstração dual SQLite/PostgreSQL no `db.js`. Esse diagrama forçou uma discussão sobre por que essa separação existe e quais são as consequências dela — o que acabou sendo documentado no ADR-0001. O diagrama de casos de uso foi valioso para validar que todas as histórias estavam representadas, mas não gerou questionamentos tão profundos sobre as decisões arquiteturais.
+O diagrama de **sequência** foi o mais útil. Ao tentar representar o fluxo de aceite, ficou evidente que a IA havia colapsado as camadas Controller/Service/Repository em uma única "API", escondendo justamente a decisão arquitetural mais importante da iteração (ADR-0002). Além disso, a versão corrigida deixou explícito o UPDATE condicional como mecanismo de controle de concorrência — algo que no código está em uma única linha, mas que o diagrama torna visível como decisão de projeto deliberada.
 
----
-
-## Localização no repositório
-
-| Artefato | Caminho |
-|---|---|
-| Este documento | `docs/diagramas.md` |
-| ADR migração SQLite → PostgreSQL | `docs/adr/0001-sqlite-ou-postgresql.md` |
-| ADR SQL puro vs ORM | `docs/adr/0002-sql-puro-ou-orm.md` |
-| Histórias e RNFs | `docs/projeto.md` |
-| Testes | `tests/doacoes.test.js` |
-| Implementação das histórias | `src/services/doacoesService.js` |
+O diagrama de **estados** também foi valioso para expor a regra de negócio de que doações aceitas não podem ser canceladas, que a IA havia simplesmente omitido.
