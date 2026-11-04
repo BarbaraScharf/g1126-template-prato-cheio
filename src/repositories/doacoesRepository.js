@@ -66,3 +66,35 @@ export async function listarDisponiveisPorTipo(tipo) {
   );
   return rows;
 }
+
+// Lista doações aceitas e concluídas (aba "Reservadas / Concluídas" do frontend).
+export async function listarAceitas() {
+  const { rows } = await query(
+    `SELECT * FROM doacoes WHERE status IN ('aceita', 'concluida') ORDER BY criada_em ASC`
+  );
+  return rows;
+}
+
+// Libera a reserva: volta o status de 'aceita' para 'disponivel' e limpa a ONG.
+// Só age se o status atual for 'aceita'; devolve undefined se a condição falhar.
+export async function liberar(id) {
+  const { alteradas } = await query(
+    `UPDATE doacoes SET status = 'disponivel', ong = NULL WHERE id = ? AND status = 'aceita'`,
+    [id]
+  );
+  if (alteradas === 0) return undefined;
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
+  return rows[0];
+}
+
+// Conclui a retirada: muda o status de 'aceita' para 'concluida'.
+// Só age se o status atual for 'aceita'; devolve undefined se a condição falhar.
+export async function concluir(id) {
+  const { alteradas } = await query(
+    `UPDATE doacoes SET status = 'concluida' WHERE id = ? AND status = 'aceita'`,
+    [id]
+  );
+  if (alteradas === 0) return undefined;
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
+  return rows[0];
+}

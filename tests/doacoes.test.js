@@ -305,3 +305,164 @@ describe('filtrar doações por tipo', () => {
     expect(res.body).toHaveLength(1);
   });
 });
+
+describe('concluir a retirada de uma doação — H6', () => {
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
+
+  async function publicarEAceitar(tipo = 'Pão') {
+    const criada = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo, quantidade: '2', validade: hojeMais(30) });
+    const id = criada.body.id;
+    await request(app).post(`/api/doacoes/${id}/aceitar`).send({ ong: 'ONG Esperança' });
+    return id;
+  }
+
+  it('muda o status para concluida quando a doação está aceita', async () => {
+    const id = await publicarEAceitar();
+    const res = await request(app).post(`/api/doacoes/${id}/concluir`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('concluida');
+    expect(res.body.id).toBe(id);
+  });
+
+  it('remove a doação concluída da lista de disponíveis', async () => {
+    const id = await publicarEAceitar();
+    await request(app).post(`/api/doacoes/${id}/concluir`);
+    const res = await request(app).get('/api/doacoes');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(0);
+  });
+
+  it('aparece na lista de aceitas/concluídas após concluir', async () => {
+    const id = await publicarEAceitar();
+    await request(app).post(`/api/doacoes/${id}/concluir`);
+    const res = await request(app).get('/api/doacoes/aceitas');
+    expect(res.status).toBe(200);
+    expect(res.body.some(d => d.id === id && d.status === 'concluida')).toBe(true);
+  });
+
+  it('recusa concluir uma doação que ainda está disponível', async () => {
+    const criada = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Maçã', quantidade: '10', validade: hojeMais(30) });
+    const res = await request(app).post(`/api/doacoes/${criada.body.id}/concluir`);
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/apenas doações aceitas/i);
+  });
+
+  it('recusa concluir uma doação cancelada', async () => {
+    const criada = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Leite', quantidade: '3', validade: hojeMais(30) });
+    const id = criada.body.id;
+    await request(app).post(`/api/doacoes/${id}/cancelar`);
+    const res = await request(app).post(`/api/doacoes/${id}/concluir`);
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/apenas doações aceitas/i);
+  });
+
+  it('recusa concluir uma doação inexistente', async () => {
+    const res = await request(app).post('/api/doacoes/99999/concluir');
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toBe('Doação não encontrada');
+  });
+});
+
+describe('liberar reserva de uma doação', () => {
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
+
+  async function publicarEAceitar(tipo = 'Frango') {
+    const criada = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo, quantidade: '1', validade: hojeMais(30) });
+    const id = criada.body.id;
+    await request(app).post(`/api/doacoes/${id}/aceitar`).send({ ong: 'ONG Teste' });
+    return id;
+  }
+
+  it('volta o status para disponivel ao liberar a reserva', async () => {
+    const id = await publicarEAceitar();
+    const res = await request(app).post(`/api/doacoes/${id}/liberar`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('disponivel');
+    expect(res.body.ong).toBeNull();
+  });
+
+  it('reaparece na lista de disponíveis após liberar', async () => {
+    const id = await publicarEAceitar();
+    await request(app).post(`/api/doacoes/${id}/liberar`);
+    const res = await request(app).get('/api/doacoes');
+    expect(res.status).toBe(200);
+    expect(res.body.some(d => d.id === id)).toBe(true);
+  });
+
+  it('recusa liberar uma doação que ainda está disponível', async () => {
+    const criada = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Tomate', quantidade: '5', validade: hojeMais(30) });
+    const res = await request(app).post(`/api/doacoes/${criada.body.id}/liberar`);
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/apenas doações aceitas/i);
+  });
+
+  it('recusa liberar uma doação inexistente', async () => {
+    const res = await request(app).post('/api/doacoes/99999/liberar');
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toBe('Doação não encontrada');
+  });
+});
+
+describe('listar doações aceitas e concluídas', () => {
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
+
+  it('retorna lista vazia quando não há doações aceitas', async () => {
+    const res = await request(app).get('/api/doacoes/aceitas');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(0);
+  });
+
+  it('inclui doações aceitas e concluídas, mas não disponíveis nem canceladas', async () => {
+    // disponível
+    await request(app).post('/api/doacoes').send({ tipo: 'Arroz', quantidade: '1', validade: hojeMais(30) });
+
+    // aceita
+    const aceita = await request(app).post('/api/doacoes').send({ tipo: 'Feijão', quantidade: '2', validade: hojeMais(30) });
+    await request(app).post(`/api/doacoes/${aceita.body.id}/aceitar`).send({ ong: 'ONG A' });
+
+    // cancelada
+    const cancelada = await request(app).post('/api/doacoes').send({ tipo: 'Sopa', quantidade: '3', validade: hojeMais(30) });
+    await request(app).post(`/api/doacoes/${cancelada.body.id}/cancelar`);
+
+    // concluída
+    const concluida = await request(app).post('/api/doacoes').send({ tipo: 'Pão', quantidade: '4', validade: hojeMais(30) });
+    await request(app).post(`/api/doacoes/${concluida.body.id}/aceitar`).send({ ong: 'ONG B' });
+    await request(app).post(`/api/doacoes/${concluida.body.id}/concluir`);
+
+    const res = await request(app).get('/api/doacoes/aceitas');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body.every(d => ['aceita', 'concluida'].includes(d.status))).toBe(true);
+  });
+});
