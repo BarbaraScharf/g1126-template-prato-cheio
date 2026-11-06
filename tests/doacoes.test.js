@@ -466,3 +466,42 @@ describe('listar doações aceitas e concluídas', () => {
     expect(res.body.every(d => ['aceita', 'concluida'].includes(d.status))).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Casos limite — comportamentos de borda não cobertos pelos critérios originais
+// ---------------------------------------------------------------------------
+
+describe('casos limite na publicação de doações', () => {
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
+
+  // Caso limite 1: quantidade zero não é uma doação válida.
+  // A regex /^\d+(\.\d+)?$/ aceita '0', mas zero unidades não faz sentido
+  // logístico — a regra deve rejeitar explicitamente.
+  it('recusa doação com quantidade zero', async () => {
+    const res = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Arroz', quantidade: '0', validade: hojeMais(30) });
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/maior que zero/);
+  });
+
+  // Caso limite 2: tipo com espaço interno ('Ar roz').
+  // O service faz trim() nas bordas mas não valida espaços internos.
+  // Um tipo como 'Ar roz' chegaria ao banco e quebraria o filtro por tipo
+  // (GET /api/doacoes?tipo=Arroz não encontraria 'Ar roz').
+  // A regra deve rejeitar tipos com espaços internos.
+  it('recusa doação com espaço interno no tipo de alimento', async () => {
+    const res = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Ar roz', quantidade: '5', validade: hojeMais(30) });
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/não pode conter espaços/);
+  });
+});

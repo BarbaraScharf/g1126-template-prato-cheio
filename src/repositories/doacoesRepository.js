@@ -10,14 +10,6 @@ export async function inserir({ tipo, quantidade, validade }) {
   return rows[0];
 }
 
-// Devolve apenas as doações com status 'disponivel'.
-export async function listarDisponiveis() {
-  const { rows } = await query(
-    `SELECT * FROM doacoes WHERE status = 'disponivel' ORDER BY criada_em ASC`
-  );
-  return rows;
-}
-
 // Busca uma doação pelo id (devolve undefined se não existir).
 export async function buscarPorId(id) {
   const { rows } = await query(

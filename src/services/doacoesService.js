@@ -16,9 +16,18 @@ export async function criarDoacao({ tipo, quantidade, validade } = {}) {
     throw new Error('O tipo de alimento não pode conter números');
   }
 
+  // Tipo de alimento NÃO pode conter espaços internos (ex: "Ar roz" é inválido)
+  if (/\s/.test(tipo.trim())) {
+    throw new Error('O tipo de alimento não pode conter espaços internos');
+  }
+
   // Quantidade DEVE ser apenas números (inteiros ou decimais, ex: 15, 8.5)
+  // Quantidade zero não é válida — não faz sentido logístico
   if (!/^\d+(\.\d+)?$/.test(quantidade.toString().trim())) {
     throw new Error('A quantidade deve ser informada apenas com números (ex: 15, 8.5)');
+  }
+  if (Number(quantidade.toString().trim()) === 0) {
+    throw new Error('A quantidade deve ser maior que zero');
   }
 
   // Validade não pode ser hoje nem no passado

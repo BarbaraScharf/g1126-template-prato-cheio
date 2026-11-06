@@ -33,7 +33,7 @@ doacoesRouter.post('/', async (req, res) => {
 // H3 — ONG aceita uma doação disponível
 doacoesRouter.post('/:id/aceitar', async (req, res) => {
   try {
-    res.json(await doacoes.aceitar(req.params.id, req.body?.ong ?? 'ONG'));
+    res.json(await doacoes.aceitar(req.params.id, req.body?.ong));
   } catch (erro) {
     res.status(400).json({ erro: erro.message });
   }
