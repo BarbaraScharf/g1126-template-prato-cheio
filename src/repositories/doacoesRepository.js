@@ -1,5 +1,6 @@
 // Camada de dados do Prato Cheio — acesso ao banco.
 import { query } from '../database/db.js';
+import { STATUS } from '../status.js';
 
 // Insere a doação e devolve a linha criada.
 export async function inserir({ tipo, quantidade, validade }) {
@@ -23,38 +24,38 @@ export async function buscarPorId(id) {
 // Garante que duas ONGs não aceitem a mesma doação (sem lock extra).
 export async function aceitar(id, ong) {
   const { alteradas } = await query(
-    `UPDATE doacoes SET status = 'aceita', ong = ? WHERE id = ? AND status = 'disponivel'`,
-    [ong, id]
-  );
-  if (alteradas === 0) return undefined; // já aceita ou não existe
-  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
-  return rows[0];
-}
-
-// História 4 — cancela uma doação, mas só se ainda estiver 'disponivel'.
-// Doações aceitas não podem ser canceladas.
-export async function cancelar(id) {
-  const { alteradas } = await query(
-    `UPDATE doacoes SET status = 'cancelada' WHERE id = ? AND status = 'disponivel'`,
-    [id]
+    `UPDATE doacoes SET status = ?, ong = ? WHERE id = ? AND status = ?`,
+    [STATUS.ACEITA, ong, id, STATUS.DISPONIVEL]
   );
   if (alteradas === 0) return undefined;
   const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
   return rows[0];
 }
 
-// História 5 — lista doações disponíveis filtrando opcionalmente por tipo.
+// Cancela uma doação, mas só se ainda estiver 'disponivel'.
+export async function cancelar(id) {
+  const { alteradas } = await query(
+    `UPDATE doacoes SET status = ? WHERE id = ? AND status = ?`,
+    [STATUS.CANCELADA, id, STATUS.DISPONIVEL]
+  );
+  if (alteradas === 0) return undefined;
+  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
+  return rows[0];
+}
+
+// Lista doações disponíveis filtrando opcionalmente por tipo.
 // A comparação é insensível a maiúsculas/minúsculas.
 export async function listarDisponiveisPorTipo(tipo) {
   if (!tipo) {
     const { rows } = await query(
-      `SELECT * FROM doacoes WHERE status = 'disponivel' ORDER BY criada_em ASC`
+      `SELECT * FROM doacoes WHERE status = ? ORDER BY criada_em ASC`,
+      [STATUS.DISPONIVEL]
     );
     return rows;
   }
   const { rows } = await query(
-    `SELECT * FROM doacoes WHERE status = 'disponivel' AND LOWER(tipo) = LOWER(?) ORDER BY criada_em ASC`,
-    [tipo]
+    `SELECT * FROM doacoes WHERE status = ? AND LOWER(tipo) = LOWER(?) ORDER BY criada_em ASC`,
+    [STATUS.DISPONIVEL, tipo]
   );
   return rows;
 }
@@ -62,17 +63,17 @@ export async function listarDisponiveisPorTipo(tipo) {
 // Lista doações aceitas e concluídas (aba "Reservadas / Concluídas" do frontend).
 export async function listarAceitas() {
   const { rows } = await query(
-    `SELECT * FROM doacoes WHERE status IN ('aceita', 'concluida') ORDER BY criada_em ASC`
+    `SELECT * FROM doacoes WHERE status IN (?, ?) ORDER BY criada_em ASC`,
+    [STATUS.ACEITA, STATUS.CONCLUIDA]
   );
   return rows;
 }
 
 // Libera a reserva: volta o status de 'aceita' para 'disponivel' e limpa a ONG.
-// Só age se o status atual for 'aceita'; devolve undefined se a condição falhar.
 export async function liberar(id) {
   const { alteradas } = await query(
-    `UPDATE doacoes SET status = 'disponivel', ong = NULL WHERE id = ? AND status = 'aceita'`,
-    [id]
+    `UPDATE doacoes SET status = ?, ong = NULL WHERE id = ? AND status = ?`,
+    [STATUS.DISPONIVEL, id, STATUS.ACEITA]
   );
   if (alteradas === 0) return undefined;
   const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
@@ -80,11 +81,10 @@ export async function liberar(id) {
 }
 
 // Conclui a retirada: muda o status de 'aceita' para 'concluida'.
-// Só age se o status atual for 'aceita'; devolve undefined se a condição falhar.
 export async function concluir(id) {
   const { alteradas } = await query(
-    `UPDATE doacoes SET status = 'concluida' WHERE id = ? AND status = 'aceita'`,
-    [id]
+    `UPDATE doacoes SET status = ? WHERE id = ? AND status = ?`,
+    [STATUS.CONCLUIDA, id, STATUS.ACEITA]
   );
   if (alteradas === 0) return undefined;
   const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
