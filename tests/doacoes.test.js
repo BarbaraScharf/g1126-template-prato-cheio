@@ -492,16 +492,14 @@ describe('casos limite na publicação de doações', () => {
     expect(res.body.erro).toMatch(/maior que zero/);
   });
 
-  // Caso limite 2: tipo com espaço interno ('Ar roz').
-  // O service faz trim() nas bordas mas não valida espaços internos.
-  // Um tipo como 'Ar roz' chegaria ao banco e quebraria o filtro por tipo
-  // (GET /api/doacoes?tipo=Arroz não encontraria 'Ar roz').
-  // A regra deve rejeitar tipos com espaços internos.
-  it('recusa doação com espaço interno no tipo de alimento', async () => {
+  // Caso limite 2: tipo com número misturado a letras (ex: "Arroz2")
+  // já é coberto pelo teste existente. Este cobre o limite oposto:
+  // tipo com apenas letras e espaços (ex: "Pães e Padaria") deve ser aceito.
+  it('aceita tipo de alimento com espaços e acentos', async () => {
     const res = await request(app)
       .post('/api/doacoes')
-      .send({ tipo: 'Ar roz', quantidade: '5', validade: hojeMais(30) });
-    expect(res.status).toBe(400);
-    expect(res.body.erro).toMatch(/não pode conter espaços/);
+      .send({ tipo: 'Pães e Padaria', quantidade: '5', validade: hojeMais(30) });
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('disponivel');
   });
 });

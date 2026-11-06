@@ -1,5 +1,14 @@
 // Regras de negócio das doações.
 import * as repo from '../repositories/doacoesRepository.js';
+import { STATUS } from '../status.js';
+
+// Helper interno: busca a doação pelo id ou lança erro se não existir.
+// Elimina o padrão duplicado buscarPorId + null check que aparecia em 4 métodos.
+async function buscarOuLancar(id) {
+  const doacao = await repo.buscarPorId(id);
+  if (!doacao) throw new Error('Doação não encontrada');
+  return doacao;
+}
 
 // História 1 — "um doador publica uma doação".
 export async function criarDoacao({ tipo, quantidade, validade } = {}) {
@@ -16,11 +25,6 @@ export async function criarDoacao({ tipo, quantidade, validade } = {}) {
     throw new Error('O tipo de alimento não pode conter números');
   }
 
-  // Tipo de alimento NÃO pode conter espaços internos (ex: "Ar roz" é inválido)
-  if (/\s/.test(tipo.trim())) {
-    throw new Error('O tipo de alimento não pode conter espaços internos');
-  }
-
   // Quantidade DEVE ser apenas números (inteiros ou decimais, ex: 15, 8.5)
   // Quantidade zero não é válida — não faz sentido logístico
   if (!/^\d+(\.\d+)?$/.test(quantidade.toString().trim())) {
@@ -30,7 +34,7 @@ export async function criarDoacao({ tipo, quantidade, validade } = {}) {
     throw new Error('A quantidade deve ser maior que zero');
   }
 
-  // Validade não pode ser hoje nem no passado
+  // Validade não pode ser anterior a hoje
   const dataValidade = new Date(validade.trim() + 'T00:00:00');
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -57,7 +61,7 @@ export async function criarDoacao({ tipo, quantidade, validade } = {}) {
   });
 }
 
-// Histórias 2 e 5 — "uma ONG vê as doações disponíveis" / "filtra por tipo".
+// Histórias 2 e 5 — lista doações disponíveis, com filtro opcional por tipo.
 export async function listarDisponiveis(tipo) {
   return repo.listarDisponiveisPorTipo(tipo);
 }
@@ -73,72 +77,40 @@ export async function aceitar(id, ong) {
     throw new Error('Nome da ONG é obrigatório');
   }
 
-  const doacao = await repo.buscarPorId(id);
-
-  if (!doacao) {
-    throw new Error('Doação não encontrada');
-  }
+  await buscarOuLancar(id);
 
   const atualizada = await repo.aceitar(id, ong.toString().trim());
-
-  if (!atualizada) {
-    throw new Error('Doação não está mais disponível');
-  }
-
+  if (!atualizada) throw new Error('Doação não está mais disponível');
   return atualizada;
 }
 
 // História 4 — "um doador cancela uma doação disponível".
 export async function cancelar(id) {
-  const doacao = await repo.buscarPorId(id);
+  const doacao = await buscarOuLancar(id);
 
-  if (!doacao) {
-    throw new Error('Doação não encontrada');
-  }
-
-  if (doacao.status === 'aceita') {
+  if (doacao.status === STATUS.ACEITA) {
     throw new Error('Não é possível cancelar uma doação já aceita por uma ONG');
   }
 
   const cancelada = await repo.cancelar(id);
-
-  if (!cancelada) {
-    throw new Error('Doação não pode ser cancelada');
-  }
-
+  if (!cancelada) throw new Error('Doação não pode ser cancelada');
   return cancelada;
 }
 
-// Libera a reserva de volta para a lista de disponíveis
+// Libera a reserva de volta para a lista de disponíveis.
 export async function liberar(id) {
-  const doacao = await repo.buscarPorId(id);
-
-  if (!doacao) {
-    throw new Error('Doação não encontrada');
-  }
+  await buscarOuLancar(id);
 
   const liberada = await repo.liberar(id);
-
-  if (!liberada) {
-    throw new Error('Apenas doações aceitas podem ter a reserva liberada');
-  }
-
+  if (!liberada) throw new Error('Apenas doações aceitas podem ter a reserva liberada');
   return liberada;
 }
 
-// Conclui a retirada da doação pela ONG
+// Conclui a retirada da doação pela ONG.
 export async function concluir(id) {
-  const doacao = await repo.buscarPorId(id);
-
-  if (!doacao) {
-    throw new Error('Doação não encontrada');
-  }
+  await buscarOuLancar(id);
 
   const concluida = await repo.concluir(id);
-
-  if (!concluida) {
-    throw new Error('Apenas doações aceitas podem ser concluídas');
-  }
-
+  if (!concluida) throw new Error('Apenas doações aceitas podem ser concluídas');
   return concluida;
 }
