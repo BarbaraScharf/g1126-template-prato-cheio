@@ -20,26 +20,27 @@ export async function buscarPorId(id) {
   return rows[0];
 }
 
-// Atualização condicional: só muda o status se ainda estiver 'disponivel'.
-// Garante que duas ONGs não aceitem a mesma doação (sem lock extra).
+/**
+ * Atualização condicional com RETURNING *:
+ * Só muda o status se ainda estiver no status esperado — garante que duas ONGs
+ * não aceitem a mesma doação (sem lock extra) e elimina o segundo SELECT
+ * que existia antes desta refatoração.
+ * Devolve a linha atualizada ou undefined se nenhuma linha foi afetada.
+ */
 export async function aceitar(id, ong) {
-  const { alteradas } = await query(
-    `UPDATE doacoes SET status = ?, ong = ? WHERE id = ? AND status = ?`,
+  const { rows } = await query(
+    `UPDATE doacoes SET status = ?, ong = ? WHERE id = ? AND status = ? RETURNING *`,
     [STATUS.ACEITA, ong, id, STATUS.DISPONIVEL]
   );
-  if (alteradas === 0) return undefined;
-  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
   return rows[0];
 }
 
-// Cancela uma doação, mas só se ainda estiver 'disponivel'.
+// Cancela uma doação, mas só se ainda estiver 'disponivel'. Devolve a linha ou undefined.
 export async function cancelar(id) {
-  const { alteradas } = await query(
-    `UPDATE doacoes SET status = ? WHERE id = ? AND status = ?`,
+  const { rows } = await query(
+    `UPDATE doacoes SET status = ? WHERE id = ? AND status = ? RETURNING *`,
     [STATUS.CANCELADA, id, STATUS.DISPONIVEL]
   );
-  if (alteradas === 0) return undefined;
-  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
   return rows[0];
 }
 
@@ -70,23 +71,21 @@ export async function listarAceitas() {
 }
 
 // Libera a reserva: volta o status de 'aceita' para 'disponivel' e limpa a ONG.
+// Devolve a linha atualizada ou undefined se a doação não estava aceita.
 export async function liberar(id) {
-  const { alteradas } = await query(
-    `UPDATE doacoes SET status = ?, ong = NULL WHERE id = ? AND status = ?`,
+  const { rows } = await query(
+    `UPDATE doacoes SET status = ?, ong = NULL WHERE id = ? AND status = ? RETURNING *`,
     [STATUS.DISPONIVEL, id, STATUS.ACEITA]
   );
-  if (alteradas === 0) return undefined;
-  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
   return rows[0];
 }
 
 // Conclui a retirada: muda o status de 'aceita' para 'concluida'.
+// Devolve a linha atualizada ou undefined se a doação não estava aceita.
 export async function concluir(id) {
-  const { alteradas } = await query(
-    `UPDATE doacoes SET status = ? WHERE id = ? AND status = ?`,
+  const { rows } = await query(
+    `UPDATE doacoes SET status = ? WHERE id = ? AND status = ? RETURNING *`,
     [STATUS.CONCLUIDA, id, STATUS.ACEITA]
   );
-  if (alteradas === 0) return undefined;
-  const { rows } = await query(`SELECT * FROM doacoes WHERE id = ?`, [id]);
   return rows[0];
 }

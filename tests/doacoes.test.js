@@ -159,7 +159,7 @@ describe('aceitar uma doação', () => {
     const res = await request(app)
       .post('/api/doacoes/abc/aceitar')
       .send({ ong: 'ONG Esperança' });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(res.body.erro).toBe('Doação não encontrada');
   });
 
@@ -167,7 +167,7 @@ describe('aceitar uma doação', () => {
     const res = await request(app)
       .post('/api/doacoes/99999/aceitar')
       .send({ ong: 'ONG Esperança' });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(res.body.erro).toBe('Doação não encontrada');
   });
 
@@ -225,13 +225,13 @@ describe('cancelar uma doação', () => {
 
   it('retorna erro ao tentar cancelar uma doação inexistente', async () => {
     const res = await request(app).post('/api/doacoes/9999/cancelar');
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(res.body.erro).toMatch(/não encontrada/);
   });
 
   it('retorna erro ao tentar cancelar com id não numérico', async () => {
     const res = await request(app).post('/api/doacoes/abc/cancelar');
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(res.body.erro).toBe('Doação não encontrada');
   });
 
@@ -371,7 +371,7 @@ describe('concluir a retirada de uma doação — H6', () => {
 
   it('recusa concluir uma doação inexistente', async () => {
     const res = await request(app).post('/api/doacoes/99999/concluir');
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(res.body.erro).toBe('Doação não encontrada');
   });
 });
@@ -422,7 +422,7 @@ describe('liberar reserva de uma doação', () => {
 
   it('recusa liberar uma doação inexistente', async () => {
     const res = await request(app).post('/api/doacoes/99999/liberar');
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(res.body.erro).toBe('Doação não encontrada');
   });
 });
